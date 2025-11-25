@@ -98,10 +98,28 @@ class OrderController {
       const tenantId = req.headers["x-tenant-id"];
       const { orderId } = req.params;
 
+      // Make tenant ID optional for internal service calls
       if (!tenantId) {
-        return res.status(400).json({
-          error: "Missing X-Tenant-ID header",
-        });
+        console.warn(
+          "No X-Tenant-ID header, attempting query without tenant filter"
+        );
+
+        // Try to find order without tenant filter (for internal API calls)
+        const query = `
+          SELECT * FROM product.orders
+          WHERE order_id = $1
+        `;
+        const pool = require("../config/database");
+        const result = await pool.query(query, [orderId]);
+
+        if (result.rows.length === 0) {
+          return res.status(404).json({
+            error: "Order not found",
+            order_id: orderId,
+          });
+        }
+
+        return res.json({ order: result.rows[0] });
       }
 
       const order = await orderRepository.findById(orderId, tenantId);
@@ -155,9 +173,32 @@ class OrderController {
       const tenantId = req.headers["x-tenant-id"];
       const { orderId } = req.params;
 
+      // Make tenant ID optional for internal service calls
       if (!tenantId) {
-        return res.status(400).json({
-          error: "Missing X-Tenant-ID header",
+        console.warn(
+          "No X-Tenant-ID header, attempting update without tenant filter"
+        );
+
+        // Update order without tenant filter (for internal API calls)
+        const query = `
+          UPDATE product.orders
+          SET status = 'CONFIRMED', updated_at = NOW()
+          WHERE order_id = $1
+          RETURNING *
+        `;
+        const pool = require("../config/database");
+        const result = await pool.query(query, [orderId]);
+
+        if (result.rows.length === 0) {
+          return res.status(404).json({
+            error: "Order not found",
+            order_id: orderId,
+          });
+        }
+
+        return res.json({
+          message: "Order confirmed successfully",
+          order: result.rows[0],
         });
       }
 

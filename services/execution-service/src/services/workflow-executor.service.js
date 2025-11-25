@@ -30,7 +30,10 @@ class WorkflowExecutorService {
     );
 
     // Initialize execution state
-    const initialVariables = { ...triggerData };
+    const initialVariables = {
+      ...triggerData,
+      tenant_id: tenantId, // Add tenant_id to variables
+    };
     await executionStateRepository.create(instanceId, "1", initialVariables);
 
     console.log(`Workflow instance created: ${instanceId}`);

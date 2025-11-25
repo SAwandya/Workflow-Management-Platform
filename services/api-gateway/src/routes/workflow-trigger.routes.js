@@ -87,13 +87,35 @@ router.post(
 router.get(
   "/instances/:instanceId/status",
   authMiddleware.authenticate.bind(authMiddleware),
-  authMiddleware.extractTenantId.bind(authMiddleware),
   async (req, res) => {
     try {
+      // Try to extract tenant ID from multiple sources
+      let tenantId = req.tenantId; // From JWT
+
+      if (!tenantId) {
+        tenantId = req.headers["x-tenant-id"]; // From header
+      }
+
+      if (!tenantId) {
+        tenantId = req.query.tenant_id; // From query parameter
+      }
+
+      if (!tenantId) {
+        return res.status(400).json({
+          error: "Tenant ID not found",
+          message:
+            "Please provide tenant ID via header (X-Tenant-ID) or query parameter (tenant_id)",
+        });
+      }
+
+      console.log(
+        `API Gateway: Getting workflow status for instance ${req.params.instanceId}, tenant ${tenantId}`
+      );
+
       const response = await axios.get(
         `${WMC_CONTROLLER_URL}/api/workflows/instances/${req.params.instanceId}/status`,
         {
-          params: { tenant_id: req.tenantId },
+          params: { tenant_id: tenantId },
           timeout: 10000,
         }
       );

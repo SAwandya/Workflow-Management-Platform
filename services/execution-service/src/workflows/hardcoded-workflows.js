@@ -32,7 +32,7 @@ const workflows = {
         step_id: "3",
         step_name: "approval-gateway",
         type: "exclusive-gateway",
-        condition: "orderDetails.order_value > 10000",
+        condition: "orderDetails.order.order_value > 10000", // FIXED: Added .order
         branches: {
           true: "4",
           false: "6",
@@ -48,8 +48,8 @@ const workflows = {
           recipient: "manager@tenant-a.com",
           template: "order-approval-request",
           data_mapping: {
-            orderId: "orderDetails.order_id",
-            orderValue: "orderDetails.order_value",
+            orderId: "orderDetails.order.order_id", // FIXED
+            orderValue: "orderDetails.order.order_value", // FIXED
           },
         },
         next: "5",
@@ -114,7 +114,7 @@ const workflows = {
         step_id: "3",
         step_name: "approval-gateway",
         type: "exclusive-gateway",
-        condition: "orderDetails.order_value > 10000",
+        condition: "orderDetails.order.order_value > 10000", // FIXED
         branches: {
           true: "4",
           false: "6",
@@ -130,8 +130,8 @@ const workflows = {
           recipient: "manager@tenant-b.com",
           template: "order-approval-request",
           data_mapping: {
-            orderId: "orderDetails.order_id",
-            orderValue: "orderDetails.order_value",
+            orderId: "orderDetails.order.order_id", // FIXED
+            orderValue: "orderDetails.order.order_value", // FIXED
           },
         },
         next: "5",

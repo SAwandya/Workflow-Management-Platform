@@ -48,10 +48,17 @@ class StepProcessorService {
       endpoint = endpoint.replace(`{${key}}`, variables[key]);
     });
 
+    // Extract tenant_id from variables to pass as header
+    const headers = config.headers || {};
+    if (variables.tenant_id) {
+      headers["X-Tenant-ID"] = variables.tenant_id;
+    }
+
     const callConfig = {
       method: config.method,
       endpoint: endpoint,
       body: config.body,
+      headers: headers,
       variables: variables,
     };
 
@@ -60,7 +67,19 @@ class StepProcessorService {
     // Store output in variable if specified
     let newVariables = {};
     if (config.output_variable && result.success) {
-      newVariables[config.output_variable] = result.data;
+      // Deep clone the data to avoid reference issues
+      let outputData = JSON.parse(JSON.stringify(result.data));
+
+      // Convert numeric strings to numbers for comparison operations
+      if (outputData && typeof outputData === "object") {
+        this.convertNumericStrings(outputData);
+      }
+
+      newVariables[config.output_variable] = outputData;
+      console.log(
+        `[executeApiCall] Stored ${config.output_variable}:`,
+        newVariables[config.output_variable]
+      );
     }
 
     return {
@@ -69,6 +88,30 @@ class StepProcessorService {
       output: result,
       newVariables,
     };
+  }
+
+  // Helper method to convert numeric strings to numbers
+  convertNumericStrings(obj) {
+    for (const key in obj) {
+      if (obj.hasOwnProperty(key)) {
+        const value = obj[key];
+
+        // If it's an object, recurse
+        if (value && typeof value === "object") {
+          this.convertNumericStrings(value);
+        }
+        // If it's a string that looks like a number, convert it
+        else if (typeof value === "string" && /^\d+\.?\d*$/.test(value)) {
+          const numValue = parseFloat(value);
+          if (!isNaN(numValue)) {
+            console.log(
+              `[convertNumericStrings] Converting ${key}: "${value}" (string) → ${numValue} (number)`
+            );
+            obj[key] = numValue;
+          }
+        }
+      }
+    }
   }
 
   async sendNotification(step, config, variables) {
@@ -101,7 +144,17 @@ class StepProcessorService {
 
   async processExclusiveGateway(step, variables) {
     // Evaluate condition
+    console.log("=== Gateway Evaluation ===");
+    console.log("Condition:", step.condition);
+    console.log("Variables:", JSON.stringify(variables, null, 2));
+
     const conditionResult = this.evaluateCondition(step.condition, variables);
+
+    console.log("Condition Result:", conditionResult);
+    console.log(
+      "Branching to:",
+      conditionResult ? "TRUE branch" : "FALSE branch"
+    );
 
     const nextStep = conditionResult ? step.branches.true : step.branches.false;
 
@@ -144,33 +197,74 @@ class StepProcessorService {
   }
 
   evaluateCondition(condition, variables) {
-    // Simple condition evaluator
-    // Example: "orderDetails.order_value > 10000"
-
     try {
+      console.log("[Condition Evaluator] Input condition:", condition);
+      console.log(
+        "[Condition Evaluator] Variables:",
+        JSON.stringify(variables, null, 2)
+      );
+
       // Replace variable paths with actual values
       let evaluableCondition = condition;
 
       // Find all variable references (e.g., orderDetails.order_value)
       const varPattern =
         /([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*)/g;
-      const matches = condition.match(varPattern);
+      const matches = [...new Set(condition.match(varPattern) || [])];
+
+      console.log("[Condition Evaluator] Found variables:", matches);
 
       if (matches) {
         matches.forEach((match) => {
+          // Skip operator keywords
+          if (
+            ["true", "false", "null", "undefined"].includes(match.toLowerCase())
+          ) {
+            return;
+          }
+
           const value = this.getNestedValue(variables, match);
-          evaluableCondition = evaluableCondition.replace(
-            match,
-            JSON.stringify(value)
+          console.log(
+            `[Condition Evaluator] ${match} = ${JSON.stringify(
+              value
+            )} (type: ${typeof value})`
           );
+
+          // Replace with the actual value
+          if (value !== undefined) {
+            // Use regex with word boundaries to avoid partial matches
+            const regex = new RegExp(
+              `\\b${match.replace(/\./g, "\\.")}\\b`,
+              "g"
+            );
+            evaluableCondition = evaluableCondition.replace(
+              regex,
+              JSON.stringify(value)
+            );
+          }
         });
       }
 
+      console.log(
+        "[Condition Evaluator] Evaluable condition:",
+        evaluableCondition
+      );
+
       // Evaluate the condition
       const result = eval(evaluableCondition);
+      console.log(
+        "[Condition Evaluator] Result:",
+        result,
+        "(type:",
+        typeof result,
+        ")"
+      );
+
       return Boolean(result);
     } catch (error) {
-      console.error("Condition evaluation failed:", error);
+      console.error("[Condition Evaluator] Evaluation failed:", error);
+      console.error("[Condition Evaluator] Condition was:", condition);
+      console.error("[Condition Evaluator] Variables were:", variables);
       return false;
     }
   }
@@ -179,14 +273,33 @@ class StepProcessorService {
     const keys = path.split(".");
     let value = obj;
 
+    console.log(`[getNestedValue] Looking up path: ${path}`);
+    console.log(
+      `[getNestedValue] Starting object:`,
+      JSON.stringify(obj, null, 2)
+    );
+
     for (const key of keys) {
+      console.log(
+        `[getNestedValue] Current key: ${key}, Current value type: ${typeof value}`
+      );
+
       if (value && typeof value === "object" && key in value) {
         value = value[key];
+        console.log(`[getNestedValue] Found ${key}:`, value);
       } else {
+        console.log(
+          `[getNestedValue] Key "${key}" not found or value is not an object`
+        );
         return undefined;
       }
     }
 
+    console.log(
+      `[getNestedValue] Final value for ${path}:`,
+      value,
+      `(type: ${typeof value})`
+    );
     return value;
   }
 }

@@ -18,6 +18,10 @@ class TenantWorkflowInterceptor {
       // Extract tenant ID from header
       const tenantId = req.headers["x-tenant-id"];
 
+      console.log("=== Workflow Interceptor ===");
+      console.log("Tenant ID:", tenantId);
+      console.log("Trigger Event:", triggerEvent);
+
       if (!tenantId) {
         console.warn("No tenant ID in request, skipping workflow check");
         return next();
@@ -32,6 +36,8 @@ class TenantWorkflowInterceptor {
         tenantId,
         triggerEvent
       );
+
+      console.log("Workflow found:", workflow);
 
       if (!workflow) {
         console.log(`No custom workflow found, proceeding with default flow`);
@@ -50,6 +56,8 @@ class TenantWorkflowInterceptor {
       next();
     } catch (error) {
       console.error("Workflow interceptor error:", error);
+      console.error("Error details:", error.message);
+      console.error("Stack:", error.stack);
       // On error, continue with default flow
       next();
     }

@@ -29,8 +29,8 @@ class WorkflowInstanceRepository {
   async updateStatus(instanceId, status, errorMessage = null) {
     const query = `
       UPDATE execution_repository.workflow_instances
-      SET status = $2, 
-          completed_at = CASE WHEN $2 IN ('COMPLETED', 'FAILED', 'CANCELLED') THEN NOW() ELSE completed_at END,
+      SET status = $2::VARCHAR, 
+          completed_at = CASE WHEN $2::VARCHAR IN ('COMPLETED', 'FAILED', 'CANCELLED') THEN NOW() ELSE completed_at END,
           error_message = $3
       WHERE instance_id = $1
       RETURNING *
