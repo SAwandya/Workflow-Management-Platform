@@ -1,0 +1,142 @@
+version: "3.9"
+
+services:
+  postgresql:
+    image: postgres:15
+    container_name: wmc-postgresql
+    environment:
+      POSTGRES_DB: wmc_platform
+      POSTGRES_USER: wmc_admin
+      POSTGRES_PASSWORD: wmc_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./databases/postgresql/init-scripts:/docker-entrypoint-initdb.d
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wmc_admin -d wmc_platform"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: wmc-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  product-service:
+    build: ./services/product-service
+    container_name: wmc-product-service
+    ports:
+      - "3001:3000"
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      DATABASE_URL: postgresql://wmc_admin:wmc_password@postgresql:5432/wmc_platform
+      REDIS_URL: redis://redis:6379
+      TENANT_MANAGER_URL: http://tenant-manager:3000
+      API_GATEWAY_URL: http://api-gateway:3000
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      tenant-manager:
+        condition: service_started
+    volumes:
+      - ./services/product-service:/app
+      - /app/node_modules
+
+  tenant-manager:
+    build: ./services/tenant-manager
+    container_name: wmc-tenant-manager
+    ports:
+      - "3002:3000"
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      DATABASE_URL: postgresql://wmc_admin:wmc_password@postgresql:5432/wmc_platform
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    volumes:
+      - ./services/tenant-manager:/app
+      - /app/node_modules
+
+  api-gateway:
+    build: ./services/api-gateway
+    container_name: wmc-api-gateway
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      WMC_CONTROLLER_URL: http://wmc-controller:3000
+      JWT_SECRET: your-secret-key-change-in-production
+    depends_on:
+      - wmc-controller
+    volumes:
+      - ./services/api-gateway:/app
+      - /app/node_modules
+
+  wmc-controller:
+    build: ./services/wmc-controller
+    container_name: wmc-controller
+    ports:
+      - "3003:3000"
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      EXECUTION_SERVICE_URL: http://execution-service:3000
+    depends_on:
+      - execution-service
+    volumes:
+      - ./services/wmc-controller:/app
+      - /app/node_modules
+
+  execution-service:
+    build: ./services/execution-service
+    container_name: wmc-execution-service
+    ports:
+      - "3004:3000"
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      DATABASE_URL: postgresql://wmc_admin:wmc_password@postgresql:5432/wmc_platform
+      REDIS_URL: redis://redis:6379
+      INTEGRATION_SERVICE_URL: http://integration-service:3000
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      integration-service:
+        condition: service_started
+    volumes:
+      - ./services/execution-service:/app
+      - /app/node_modules
+
+  integration-service:
+    build: ./services/integration-service
+    container_name: wmc-integration-service
+    ports:
+      - "3005:3000"
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      PRODUCT_SERVICE_URL: http://product-service:3000
+    volumes:
+      - ./services/integration-service:/app
+      - /app/node_modules
+
+volumes:
+  postgres_data:
+  redis_data:
