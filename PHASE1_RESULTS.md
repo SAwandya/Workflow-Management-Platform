@@ -3,6 +3,7 @@
 ## ✅ Success Criteria
 
 ### Functional Requirements
+
 - [x] Workflow triggered synchronously from Product Service
 - [x] Workflow executes all steps sequentially
 - [x] State persisted in execution_state table
@@ -10,18 +11,22 @@
 - [x] Tenant A and Tenant B have different workflows for same event
 
 ### Non-Functional Requirements
+
 - [x] Tenant isolation enforced (data cannot be accessed across tenants)
 - [x] Average workflow execution latency < 500ms for simple workflows
 - [x] Database queries use tenant_id in WHERE clauses
 
 ### Use Cases Validated
+
 1. **High-Value Order (>$10,000)**
+
    - Status: WAITING
    - Email notification sent
    - Requires manual approval
    - ✅ PASSED
 
 2. **Low-Value Order (≤$10,000)**
+
    - Status: COMPLETED (immediately)
    - Auto-confirmed
    - No manual approval needed
@@ -44,6 +49,7 @@
 ## 🏗️ Architecture Implemented
 
 ### Services Deployed
+
 1. Product Service (Port 3001)
 2. Tenant Manager (Port 3002)
 3. API Gateway (Port 3000)
@@ -52,6 +58,7 @@
 6. Integration Service (Port 3005)
 
 ### Database Schema
+
 - tenant_manager.tenants ✅
 - tenant_manager.workflow_registry ✅
 - execution_repository.workflow_instances ✅
