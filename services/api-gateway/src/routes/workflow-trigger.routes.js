@@ -49,18 +49,43 @@ router.post(
 router.post(
   "/instances/:instanceId/resume",
   authMiddleware.authenticate.bind(authMiddleware),
-  authMiddleware.extractTenantId.bind(authMiddleware),
   async (req, res) => {
     try {
-      console.log(`API Gateway: Routing workflow resume to WMC Controller`);
-      console.log(`Instance ID: ${req.params.instanceId}`);
+      // Try to extract tenant ID from multiple sources
+      let tenantId = req.tenantId; // From JWT
+
+      if (!tenantId) {
+        tenantId = req.headers["x-tenant-id"]; // From header
+      }
+
+      if (!tenantId) {
+        tenantId = req.body.tenant_id; // From body
+      }
+
+      if (!tenantId) {
+        return res.status(400).json({
+          error: "Missing required field: tenant_id",
+          message:
+            "Please provide tenant ID via header (X-Tenant-ID) or request body",
+        });
+      }
+
+      console.log(
+        `API Gateway: Resuming workflow instance ${req.params.instanceId}, tenant ${tenantId}`
+      );
+
+      // Add tenant_id to body if not present
+      const requestBody = {
+        ...req.body,
+        tenant_id: tenantId,
+      };
 
       const response = await axios.post(
         `${WMC_CONTROLLER_URL}/api/workflows/instances/${req.params.instanceId}/resume`,
-        req.body,
+        requestBody,
         {
           headers: {
-            "X-Tenant-ID": req.tenantId,
+            "X-Tenant-ID": tenantId,
             "Content-Type": "application/json",
           },
           timeout: 30000,
