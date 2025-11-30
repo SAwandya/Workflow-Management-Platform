@@ -137,6 +137,25 @@ services:
       - ./services/integration-service:/app
       - /app/node_modules
 
+  workflow-service:
+    build: ./services/workflow-service
+    container_name: wmc-workflow-service
+    ports:
+      - "3006:3000"
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      DATABASE_URL: postgresql://wmc_admin:wmc_password@postgresql:5432/wmc_platform
+      TENANT_MANAGER_URL: http://tenant-manager:3000
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      tenant-manager:
+        condition: service_started
+    volumes:
+      - ./services/workflow-service:/app
+      - /app/node_modules
+
 volumes:
   postgres_data:
   redis_data:
