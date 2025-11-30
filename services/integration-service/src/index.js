@@ -4,6 +4,8 @@ const cors = require("cors");
 const helmet = require("helmet");
 const morgan = require("morgan");
 const integrationRoutes = require("./routes/integration.routes");
+const serviceCatalogRoutes = require("./routes/service-catalog.routes");
+const customServiceRoutes = require("./routes/custom-service.routes");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -26,6 +28,8 @@ app.get("/health", (req, res) => {
 
 // Routes
 app.use("/api/integration", integrationRoutes);
+app.use("/api/services/catalog", serviceCatalogRoutes);
+app.use("/api/services/custom", customServiceRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

@@ -1,5 +1,6 @@
 const { v4: uuidv4 } = require("uuid");
 const { getWorkflowDefinition } = require("../workflows/hardcoded-workflows");
+const workflowServiceClient = require("../clients/workflow-service.client");
 const workflowInstanceRepository = require("../repositories/workflow-instance.repository");
 const executionStateRepository = require("../repositories/execution-state.repository");
 const stepHistoryRepository = require("../repositories/step-history.repository");
@@ -7,8 +8,38 @@ const stepProcessorService = require("./step-processor.service");
 
 class WorkflowExecutorService {
   async startWorkflow(workflowId, tenantId, triggerData) {
-    // Load workflow definition
-    const workflowDef = getWorkflowDefinition(workflowId);
+    // Try to load workflow from Workflow Service (Phase 2)
+    let workflowDef;
+    try {
+      console.log(
+        "[WorkflowExecutor] Attempting to load workflow from Workflow Service..."
+      );
+      const dbWorkflow = await workflowServiceClient.getWorkflow(
+        workflowId,
+        tenantId
+      );
+
+      if (dbWorkflow && dbWorkflow.status === "APPROVED") {
+        console.log("[WorkflowExecutor] Using workflow from database");
+        workflowDef = {
+          workflow_id: dbWorkflow.workflow_id,
+          tenant_id: dbWorkflow.tenant_id,
+          name: dbWorkflow.name,
+          steps: dbWorkflow.steps_json.steps || [],
+        };
+      } else {
+        console.log(
+          "[WorkflowExecutor] Workflow not approved or not found, falling back to hardcoded"
+        );
+        workflowDef = getWorkflowDefinition(workflowId);
+      }
+    } catch (error) {
+      console.log(
+        "[WorkflowExecutor] Workflow Service unavailable, using hardcoded definition"
+      );
+      workflowDef = getWorkflowDefinition(workflowId);
+    }
+
     if (!workflowDef) {
       throw new Error(`Workflow definition not found: ${workflowId}`);
     }

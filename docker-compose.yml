@@ -113,6 +113,7 @@ services:
       DATABASE_URL: postgresql://wmc_admin:wmc_password@postgresql:5432/wmc_platform
       REDIS_URL: redis://redis:6379
       INTEGRATION_SERVICE_URL: http://integration-service:3000
+      WORKFLOW_SERVICE_URL: http://workflow-service:3000
     depends_on:
       postgresql:
         condition: service_healthy
@@ -133,6 +134,10 @@ services:
       NODE_ENV: development
       PORT: 3000
       PRODUCT_SERVICE_URL: http://product-service:3000
+      DATABASE_URL: postgresql://wmc_admin:wmc_password@postgresql:5432/wmc_platform
+    depends_on:
+      postgresql:
+        condition: service_healthy
     volumes:
       - ./services/integration-service:/app
       - /app/node_modules
@@ -154,6 +159,20 @@ services:
         condition: service_started
     volumes:
       - ./services/workflow-service:/app
+      - /app/node_modules
+
+  workflow-designer-ui:
+    build: ./services/workflow-designer-ui
+    container_name: wmc-workflow-designer-ui
+    ports:
+      - "3007:3000"
+    environment:
+      REACT_APP_API_GATEWAY: http://localhost:3000
+      REACT_APP_WORKFLOW_SERVICE: http://localhost:3006
+      REACT_APP_INTEGRATION_SERVICE: http://localhost:3005
+      REACT_APP_TENANT_ID: tenant-a
+    volumes:
+      - ./services/workflow-designer-ui:/app
       - /app/node_modules
 
 volumes:
