@@ -153,11 +153,25 @@ class WorkflowService {
       throw new Error("Only DRAFT workflows can be submitted for approval");
     }
 
-    return await workflowRepository.updateStatus(
+    // Don't pass approvedBy for submit (it's null)
+    const query = `
+      UPDATE workflow_repository.workflows
+      SET 
+        status = $3,
+        updated_at = NOW()
+      WHERE workflow_id = $1 AND tenant_id = $2
+      RETURNING *
+    `;
+
+    const pool =
+      require("../repositories/workflow.repository").pool ||
+      require("../config/database");
+    const result = await pool.query(query, [
       workflowId,
       tenantId,
-      "PENDING_APPROVAL"
-    );
+      "PENDING_APPROVAL",
+    ]);
+    return result.rows[0];
   }
 
   async approveWorkflow(workflowId, tenantId, approvedBy) {
@@ -170,12 +184,27 @@ class WorkflowService {
       throw new Error("Only PENDING_APPROVAL workflows can be approved");
     }
 
-    return await workflowRepository.updateStatus(
+    const query = `
+      UPDATE workflow_repository.workflows
+      SET 
+        status = $3,
+        approved_by = $4,
+        approved_at = NOW(),
+        updated_at = NOW()
+      WHERE workflow_id = $1 AND tenant_id = $2
+      RETURNING *
+    `;
+
+    const pool =
+      require("../repositories/workflow.repository").pool ||
+      require("../config/database");
+    const result = await pool.query(query, [
       workflowId,
       tenantId,
       "APPROVED",
-      approvedBy
-    );
+      approvedBy,
+    ]);
+    return result.rows[0];
   }
 
   async rejectWorkflow(workflowId, tenantId, rejectedBy) {
@@ -188,12 +217,26 @@ class WorkflowService {
       throw new Error("Only PENDING_APPROVAL workflows can be rejected");
     }
 
-    return await workflowRepository.updateStatus(
+    const query = `
+      UPDATE workflow_repository.workflows
+      SET 
+        status = $3,
+        approved_by = $4,
+        updated_at = NOW()
+      WHERE workflow_id = $1 AND tenant_id = $2
+      RETURNING *
+    `;
+
+    const pool =
+      require("../repositories/workflow.repository").pool ||
+      require("../config/database");
+    const result = await pool.query(query, [
       workflowId,
       tenantId,
       "REJECTED",
-      rejectedBy
-    );
+      rejectedBy,
+    ]);
+    return result.rows[0];
   }
 
   incrementVersion(currentVersion) {

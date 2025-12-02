@@ -1,0 +1,38 @@
+### Variables
+@baseUrl = http://localhost:3006
+@tenantId = tenant-a
+
+### Health Check
+GET http://localhost:3006/health
+
+### List Workflows
+GET {{baseUrl}}/api/workflows
+X-Tenant-ID: {{tenantId}}
+
+### Create Workflow
+POST {{baseUrl}}/api/workflows
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+
+{
+  "name": "Test Workflow",
+  "description": "Quick test",
+  "steps_json": {
+    "steps": [
+      {"step_id": "1", "step_name": "start", "type": "start-event", "next": "2"},
+      {"step_id": "2", "step_name": "end", "type": "end-event"}
+    ]
+  },
+  "created_by": "tester"
+}
+
+### Create Order (Trigger Workflow)
+POST http://localhost:3001/api/orders
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+
+{
+  "customer_id": "cust-test",
+  "items": [],
+  "total": 15000
+}

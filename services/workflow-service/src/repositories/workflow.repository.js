@@ -101,12 +101,14 @@ class WorkflowRepository {
       RETURNING *
     `;
 
+    // Cast null to VARCHAR to avoid type inference issues
     const result = await pool.query(query, [
       workflowId,
       tenantId,
       status,
-      approvedBy,
+      approvedBy || null,
     ]);
+
     return result.rows[0];
   }
 
