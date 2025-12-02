@@ -175,6 +175,17 @@ services:
       - ./services/workflow-designer-ui:/app
       - /app/node_modules
 
+  adminer:
+    image: adminer
+    container_name: wmc-adminer
+    ports:
+      - "8080:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: postgresql
+    depends_on:
+      postgresql:
+        condition: service_healthy
+
 volumes:
   postgres_data:
   redis_data:

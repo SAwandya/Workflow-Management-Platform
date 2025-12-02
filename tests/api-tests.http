@@ -1,38 +1,259 @@
+### ============================================
+### WMC Phase 2 - API Tests
+### Use REST Client extension in VS Code
+### ============================================
+
 ### Variables
-@baseUrl = http://localhost:3006
+@workflowService = http://localhost:3006
+@integrationService = http://localhost:3005
+@tenantManager = http://localhost:3002
+@productService = http://localhost:3001
+@apiGateway = http://localhost:3000
 @tenantId = tenant-a
 
-### Health Check
-GET http://localhost:3006/health
+### ============================================
+### WORKFLOW SERVICE TESTS
+### ============================================
 
-### List Workflows
-GET {{baseUrl}}/api/workflows
+### 1. Health Check - Workflow Service
+GET {{workflowService}}/health
+
+### 2. List All Workflows
+GET {{workflowService}}/api/workflows
 X-Tenant-ID: {{tenantId}}
 
-### Create Workflow
-POST {{baseUrl}}/api/workflows
+### 3. Create New Workflow
+# @name createWorkflow
+POST {{workflowService}}/api/workflows
 Content-Type: application/json
 X-Tenant-ID: {{tenantId}}
 
 {
-  "name": "Test Workflow",
-  "description": "Quick test",
+  "name": "Test Workflow via REST Client",
+  "description": "Created using VS Code REST Client",
   "steps_json": {
     "steps": [
-      {"step_id": "1", "step_name": "start", "type": "start-event", "next": "2"},
-      {"step_id": "2", "step_name": "end", "type": "end-event"}
+      {
+        "step_id": "1",
+        "step_name": "start",
+        "type": "start-event",
+        "next": "2"
+      },
+      {
+        "step_id": "2",
+        "step_name": "process-order",
+        "type": "service-task",
+        "action": "api-call",
+        "config": {
+          "method": "GET",
+          "endpoint": "/api/orders/{orderId}",
+          "output_variable": "orderDetails"
+        },
+        "next": "3"
+      },
+      {
+        "step_id": "3",
+        "step_name": "end",
+        "type": "end-event"
+      }
     ]
   },
-  "created_by": "tester"
+  "created_by": "rest-client-tester"
 }
 
-### Create Order (Trigger Workflow)
-POST http://localhost:3001/api/orders
+### 4. Get Specific Workflow (use workflow_id from previous response)
+GET {{workflowService}}/api/workflows/wf-1764691066254-g13neh
+X-Tenant-ID: {{tenantId}}
+
+### 5. Update Workflow
+PUT {{workflowService}}/api/workflows/wf-1764691066254-g13neh
 Content-Type: application/json
 X-Tenant-ID: {{tenantId}}
 
 {
-  "customer_id": "cust-test",
-  "items": [],
+  "name": "Updated Workflow Name",
+  "description": "Updated description"
+}
+
+### 6. Submit Workflow for Approval
+POST {{workflowService}}/api/workflows/wf-1764688391766-bnbz6k/submit
+X-Tenant-ID: {{tenantId}}
+
+### 7. Approve Workflow
+POST {{workflowService}}/api/workflows/wf-1764693634571-p5xrli/approve
+X-Tenant-ID: {{tenantId}}
+
+### 8. Reject Workflow
+POST {{workflowService}}/api/workflows/wf-1764688391766-bnbz6k/reject
+X-Tenant-ID: {{tenantId}}
+
+### 9. Delete Workflow
+DELETE {{workflowService}}/api/workflows/wf-1764688391766-bnbz6k
+X-Tenant-ID: {{tenantId}}
+
+### ============================================
+### SERVICE CATALOG TESTS
+### ============================================
+
+### 10. List All Services
+GET {{integrationService}}/api/services/catalog
+
+### 11. Get Service Categories
+GET {{integrationService}}/api/services/catalog/categories
+
+### 12. Filter by Category
+GET {{integrationService}}/api/services/catalog?category=product_api
+
+### 13. Search Services
+GET {{integrationService}}/api/services/catalog?search=stripe
+
+### 14. Get Service Schema
+GET {{integrationService}}/api/services/catalog/product.orders.get/schema
+
+### 15. Create Custom Service
+POST {{integrationService}}/api/services/custom
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+
+{
+  "name": "My Custom API",
+  "description": "Custom service for testing",
+  "endpoint_url": "https://api.example.com/test",
+  "authentication_type": "api_key",
+  "parameters_schema": {
+    "type": "object",
+    "properties": {
+      "api_key": {
+        "type": "string",
+        "title": "API Key",
+        "ui_component": "secret_input",
+        "required": true
+      }
+    }
+  }
+}
+
+### 16. List Custom Services
+GET {{integrationService}}/api/services/custom
+X-Tenant-ID: {{tenantId}}
+
+### ============================================
+### TENANT MANAGER TESTS
+### ============================================
+
+### 17. List All Tenants
+GET {{tenantManager}}/api/tenants
+
+### 18. Register Workflow in Tenant Manager
+POST {{tenantManager}}/api/tenants/{{tenantId}}/workflows
+Content-Type: application/json
+
+{
+  "workflow_id": "wf-1764693634571-p5xrli",
+  "workflow_name": "Test Workflow",
+  "trigger_type": "sync",
+  "trigger_event": "ORDER_UPDATE_Test"
+}
+
+### 19. List Tenant Workflows
+GET {{tenantManager}}/api/tenants/{{tenantId}}/workflows
+
+### 20. Query Workflow by Event
+GET {{tenantManager}}/api/tenants/{{tenantId}}/workflows/query?trigger_event=ORDER_CREATED
+
+### ============================================
+### PRODUCT SERVICE TESTS (Trigger Workflows)
+### ============================================
+
+### 21. Create Order (Triggers Workflow)
+# @name createOrder
+POST {{productService}}/api/orders
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+
+{
+  "customer_id": "cust-rest-client-test",
+  "items": [
+    {
+      "product": "Test Product",
+      "quantity": 1,
+      "price": 15000
+    }
+  ],
   "total": 15000
 }
+
+### 22. List All Orders
+GET {{productService}}/api/orders
+X-Tenant-ID: {{tenantId}}
+
+### 23. Get Specific Order
+GET {{productService}}/api/orders/ord-abc123
+X-Tenant-ID: {{tenantId}}
+
+### ============================================
+### API GATEWAY TESTS (Workflow Execution)
+### ============================================
+
+### 24. Get Workflow Instance Status
+# Use instanceId from createOrder response
+GET {{apiGateway}}/api/gateway/workflows/instances/inst-d6734538-47f3-4fd2-ade2-0daac099633a/status?tenant_id={{tenantId}}
+
+### 25. Resume Workflow (For User Tasks)
+POST {{apiGateway}}/api/gateway/workflows/instances/inst-d6734538-47f3-4fd2-ade2-0daac099633a/resume
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+
+{
+  "step_id": "5",
+  "user_input": {
+    "approved": true,
+    "approver": "manager@tenant-a.com",
+    "comments": "Approved via REST Client"
+  }
+}
+
+### ============================================
+### INTEGRATION SERVICE TESTS
+### ============================================
+
+### 26. Test API Call Directly
+POST {{integrationService}}/api/integration/api-call
+Content-Type: application/json
+
+{
+  "method": "GET",
+  "endpoint": "http://product-service:3000/api/orders",
+  "headers": {
+    "X-Tenant-ID": "tenant-a"
+  }
+}
+
+### 27. Test Notification
+POST {{integrationService}}/api/integration/notification
+Content-Type: application/json
+
+{
+  "channel": "email",
+  "recipient": "test@example.com",
+  "template": "order-approval-request",
+  "data": {
+    "orderId": "test-order-123",
+    "orderValue": 15000
+  }
+}
+
+### ============================================
+### HEALTH CHECKS (All Services)
+### ============================================
+
+### 28. Check All Services
+GET {{productService}}/health
+###
+GET {{tenantManager}}/health
+###
+GET {{apiGateway}}/health
+###
+GET {{workflowService}}/health
+###
+GET {{integrationService}}/health
