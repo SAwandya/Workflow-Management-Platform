@@ -1,0 +1,163 @@
+.workflow-status-display {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.status-display.empty {
+  text-align: center;
+  padding: 3rem;
+  color: #95a5a6;
+  background: white;
+  border-radius: 8px;
+}
+
+.status-header {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.header-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.header-info h2 {
+  margin: 0;
+  color: #2c3e50;
+}
+
+.status-badge {
+  padding: 0.4rem 1rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.status-badge.status-running,
+.status-badge.status-processing {
+  background: #3498db;
+  color: white;
+}
+
+.status-badge.status-waiting {
+  background: #f39c12;
+  color: white;
+}
+
+.status-badge.status-completed {
+  background: #27ae60;
+  color: white;
+}
+
+.status-badge.status-failed {
+  background: #e74c3c;
+  color: white;
+}
+
+.header-meta {
+  display: flex;
+  gap: 2rem;
+  font-size: 0.9rem;
+  color: #7f8c8d;
+}
+
+.status-content {
+  margin-bottom: 2rem;
+}
+
+/* Timeline Styles */
+.step-timeline {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.step-timeline h3 {
+  margin: 0 0 1.5rem 0;
+  color: #2c3e50;
+}
+
+.timeline {
+  position: relative;
+  padding-left: 2rem;
+}
+
+.timeline::before {
+  content: "";
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  bottom: 10px;
+  width: 2px;
+  background: #ecf0f1;
+}
+
+.timeline-item {
+  position: relative;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: flex-start;
+}
+
+.timeline-marker {
+  position: absolute;
+  left: -2rem;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #ecf0f1;
+  border: 3px solid white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  z-index: 1;
+}
+
+.timeline-item.completed .timeline-marker {
+  background: #27ae60;
+  color: white;
+}
+
+.timeline-item.active .timeline-marker {
+  background: #3498db;
+  color: white;
+  animation: pulse 2s infinite;
+}
+
+.timeline-content {
+  flex: 1;
+  padding: 0.5rem 0;
+}
+
+.timeline-title {
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 0.25rem;
+}
+
+.timeline-meta {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.85rem;
+  color: #95a5a6;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.8;
+  }
+}

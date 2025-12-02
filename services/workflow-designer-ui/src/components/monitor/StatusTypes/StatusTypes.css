@@ -1,0 +1,343 @@
+.status-card {
+  background: white;
+  border-radius: 8px;
+  padding: 2rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+.status-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+.status-icon.success {
+  color: #27ae60;
+  font-size: 5rem;
+}
+
+.status-icon.warning {
+  color: #f39c12;
+}
+
+.status-card h3 {
+  color: #2c3e50;
+  margin: 0 0 1rem 0;
+}
+
+.status-card p {
+  color: #7f8c8d;
+  margin: 0.5rem 0;
+}
+
+/* Processing Status */
+.status-processing {
+  border-left: 4px solid #3498db;
+}
+
+.status-spinner {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #ecf0f1;
+  border-top: 4px solid #3498db;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.estimated-time {
+  font-size: 0.9rem;
+  color: #95a5a6;
+  font-style: italic;
+}
+
+.current-step {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background: #ecf0f1;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.step-label {
+  font-weight: 600;
+  margin-right: 0.5rem;
+}
+
+.progress-bar {
+  margin-top: 1.5rem;
+  height: 8px;
+  background: #ecf0f1;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3498db, #2980b9);
+  transition: width 0.3s;
+  animation: progress-shimmer 2s infinite;
+}
+
+@keyframes progress-shimmer {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/* Pending Approval Status */
+.status-pending {
+  border-left: 4px solid #f39c12;
+}
+
+.status-pending.highlighted {
+  border: 2px solid #f39c12;
+  box-shadow: 0 4px 12px rgba(243, 156, 18, 0.3);
+}
+
+.info-message {
+  padding: 1rem;
+  background: #fff3cd;
+  border-radius: 4px;
+  color: #856404;
+  margin-top: 1rem;
+}
+
+.approval-section {
+  margin-top: 1.5rem;
+}
+
+.approval-details {
+  font-size: 0.9rem;
+  color: #7f8c8d;
+  margin-bottom: 1rem;
+}
+
+.approval-details code {
+  background: #ecf0f1;
+  padding: 0.2rem 0.5rem;
+  border-radius: 3px;
+  font-family: monospace;
+}
+
+.order-details {
+  background: #f8f9fa;
+  padding: 1rem;
+  border-radius: 4px;
+  text-align: left;
+  margin: 1rem 0;
+}
+
+.order-details h4 {
+  margin: 0 0 0.5rem 0;
+  color: #2c3e50;
+}
+
+.order-details p {
+  margin: 0.25rem 0;
+  font-size: 0.9rem;
+}
+
+.approval-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: 1.5rem;
+}
+
+.btn-approve,
+.btn-reject {
+  padding: 0.75rem 2rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-approve {
+  background: #27ae60;
+  color: white;
+}
+
+.btn-approve:hover:not(:disabled) {
+  background: #229954;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(39, 174, 96, 0.3);
+}
+
+.btn-reject {
+  background: #e74c3c;
+  color: white;
+}
+
+.btn-reject:hover:not(:disabled) {
+  background: #c0392b;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(231, 76, 60, 0.3);
+}
+
+.btn-approve:disabled,
+.btn-reject:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.error-message {
+  background: #f8d7da;
+  color: #721c24;
+  padding: 0.75rem;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
+/* Waiting Indicator */
+.waiting-indicator {
+  margin-top: 1.5rem;
+}
+
+.waiting-dots {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.waiting-dots span {
+  width: 12px;
+  height: 12px;
+  background: #3498db;
+  border-radius: 50%;
+  animation: waiting-bounce 1.4s infinite ease-in-out both;
+}
+
+.waiting-dots span:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.waiting-dots span:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+@keyframes waiting-bounce {
+  0%,
+  80%,
+  100% {
+    transform: scale(0);
+  }
+  40% {
+    transform: scale(1);
+  }
+}
+
+/* Completed Status */
+.status-completed {
+  border-left: 4px solid #27ae60;
+}
+
+.completion-details {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  margin: 1.5rem 0;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 4px;
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.detail-label {
+  font-size: 0.85rem;
+  color: #95a5a6;
+  margin-bottom: 0.25rem;
+}
+
+.detail-value {
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.result-details {
+  margin-top: 1.5rem;
+  text-align: left;
+}
+
+.result-details summary {
+  cursor: pointer;
+  color: #3498db;
+  font-weight: 600;
+  padding: 0.5rem;
+}
+
+.result-details summary:hover {
+  text-decoration: underline;
+}
+
+.result-details pre {
+  background: #2c3e50;
+  color: #ecf0f1;
+  padding: 1rem;
+  border-radius: 4px;
+  overflow-x: auto;
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+}
+
+/* Action Required Status */
+.status-action-required {
+  border-left: 4px solid #f39c12;
+}
+
+.btn-action {
+  margin-top: 1rem;
+  padding: 0.75rem 2rem;
+  background: #f39c12;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-action:hover {
+  background: #e67e22;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(243, 156, 18, 0.3);
+}
+
+/* Waiting Status */
+.status-waiting {
+  border-left: 4px solid #95a5a6;
+}
+
+/* Failed Status */
+.status-failed {
+  border-left: 4px solid #e74c3c;
+}

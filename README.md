@@ -28,3 +28,12 @@ Multi-tenant SaaS platform with workflow-level customization capabilities.
    cp .env.example .env
 
    ```
+Open browser to: http://localhost:8080
+
+You'll see a login page. Enter:
+
+System: PostgreSQL
+Server: postgresql
+Username: wmc_admin
+Password: wmc_password
+Database: wmc_platform

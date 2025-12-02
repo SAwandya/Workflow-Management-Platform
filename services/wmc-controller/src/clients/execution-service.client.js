@@ -57,6 +57,30 @@ class ExecutionServiceClient {
       throw new Error(`Failed to get workflow status: ${error.message}`);
     }
   }
+
+  async getRecentInstances(tenantId, limit = 10) {
+    try {
+      console.log(
+        `[ExecutionServiceClient] Getting recent instances for tenant: ${tenantId}`
+      );
+
+      const response = await axios.get(
+        `${this.baseUrl}/api/execution/instances/recent`,
+        {
+          params: { tenant_id: tenantId, limit },
+          timeout: 10000,
+        }
+      );
+
+      return response.data;
+    } catch (error) {
+      console.error(
+        "[ExecutionServiceClient] Get recent instances failed:",
+        error.message
+      );
+      throw error;
+    }
+  }
 }
 
 module.exports = new ExecutionServiceClient();

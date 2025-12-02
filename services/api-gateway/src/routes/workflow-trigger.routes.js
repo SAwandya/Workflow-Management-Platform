@@ -161,4 +161,59 @@ router.get(
   }
 );
 
+// Get recent workflow instances
+router.get(
+  "/instances/recent",
+  authMiddleware.authenticate.bind(authMiddleware),
+  async (req, res) => {
+    try {
+      // Try to extract tenant ID from multiple sources
+      let tenantId = req.tenantId; // From JWT
+
+      if (!tenantId) {
+        tenantId = req.headers["x-tenant-id"]; // From header
+      }
+
+      if (!tenantId) {
+        tenantId = req.query.tenant_id; // From query parameter
+      }
+
+      if (!tenantId) {
+        return res.status(400).json({
+          error: "Tenant ID not found",
+          message:
+            "Please provide tenant ID via header (X-Tenant-ID) or query parameter (tenant_id)",
+        });
+      }
+
+      const limit = parseInt(req.query.limit) || 10;
+
+      console.log(
+        `API Gateway: Getting recent workflow instances for tenant ${tenantId}`
+      );
+
+      const response = await axios.get(
+        `${WMC_CONTROLLER_URL}/api/workflows/instances/recent`,
+        {
+          params: { tenant_id: tenantId, limit },
+          timeout: 10000,
+        }
+      );
+
+      res.json(response.data);
+    } catch (error) {
+      console.error("API Gateway: Get recent instances failed:", error.message);
+
+      if (error.response) {
+        res.status(error.response.status).json(error.response.data);
+      } else {
+        res.status(500).json({
+          error: "Gateway error",
+          details: error.message,
+        });
+      }
+    }
+  }
+);
+
 module.exports = router;
