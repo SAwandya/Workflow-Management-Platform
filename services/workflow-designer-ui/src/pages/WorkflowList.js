@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { workflowService } from "../api/workflow.api";
+import AdminActionsPanel from "../components/admin/AdminActionsPanel";
 import "./WorkflowList.css";
 
 function WorkflowList() {
@@ -8,6 +9,7 @@ function WorkflowList() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [statusFilter, setStatusFilter] = useState("");
+  const [selectedWorkflow, setSelectedWorkflow] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -131,7 +133,12 @@ function WorkflowList() {
                 >
                   Edit
                 </button>
-
+                <button
+                  className="primary"
+                  onClick={() => setSelectedWorkflow(workflow)}
+                >
+                  Manage
+                </button>
                 {workflow.status === "DRAFT" && (
                   <>
                     <button
@@ -148,7 +155,6 @@ function WorkflowList() {
                     </button>
                   </>
                 )}
-
                 {workflow.status === "REJECTED" && (
                   <button
                     className="danger"
@@ -162,6 +168,33 @@ function WorkflowList() {
           ))
         )}
       </div>
+
+      {/* Admin Actions Panel */}
+      {selectedWorkflow && (
+        <div
+          className="modal-overlay"
+          onClick={() => setSelectedWorkflow(null)}
+        >
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Manage Workflow: {selectedWorkflow.name}</h2>
+              <button
+                className="close-modal"
+                onClick={() => setSelectedWorkflow(null)}
+              >
+                ×
+              </button>
+            </div>
+            <AdminActionsPanel
+              workflow={selectedWorkflow}
+              onWorkflowUpdate={() => {
+                loadWorkflows();
+                setSelectedWorkflow(null);
+              }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

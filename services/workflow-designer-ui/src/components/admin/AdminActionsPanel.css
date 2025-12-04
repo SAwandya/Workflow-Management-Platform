@@ -1,0 +1,230 @@
+.admin-actions-panel {
+  background: white;
+  border-radius: 8px;
+  padding: 2rem;
+  margin-top: 2rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.admin-actions-panel h3 {
+  margin: 0 0 1.5rem 0;
+  color: #2c3e50;
+  font-size: 1.3rem;
+}
+
+.action-error,
+.action-success {
+  padding: 1rem 1.5rem;
+  border-radius: 6px;
+  margin-bottom: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.action-error {
+  background: #fee;
+  color: #c33;
+  border-left: 4px solid #e74c3c;
+}
+
+.action-success {
+  background: #e8f8f5;
+  color: #27ae60;
+  border-left: 4px solid #27ae60;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0;
+  opacity: 0.7;
+}
+
+.close-btn:hover {
+  opacity: 1;
+}
+
+.workflow-status-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 6px;
+}
+
+.workflow-status-info .label {
+  font-weight: 600;
+  color: #7f8c8d;
+}
+
+.status-badge {
+  padding: 0.4rem 1rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.status-badge.status-draft {
+  background: #95a5a6;
+  color: white;
+}
+
+.status-badge.status-pending_approval {
+  background: #f39c12;
+  color: white;
+}
+
+.status-badge.status-approved {
+  background: #27ae60;
+  color: white;
+}
+
+.status-badge.status-rejected {
+  background: #e74c3c;
+  color: white;
+}
+
+.actions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.action-card {
+  border: 2px solid #ecf0f1;
+  border-radius: 8px;
+  padding: 1.5rem;
+  text-align: center;
+  transition: all 0.3s;
+}
+
+.action-card:hover {
+  border-color: #3498db;
+  box-shadow: 0 4px 12px rgba(52, 152, 219, 0.2);
+}
+
+.action-card.full-width {
+  grid-column: 1 / -1;
+}
+
+.action-card.info {
+  background: #f8f9fa;
+  border-color: #dee2e6;
+}
+
+.action-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.action-card h4 {
+  margin: 0 0 0.5rem 0;
+  color: #2c3e50;
+  font-size: 1.1rem;
+}
+
+.action-card p {
+  margin: 0 0 1.5rem 0;
+  color: #7f8c8d;
+  font-size: 0.9rem;
+}
+
+.action-button {
+  padding: 0.75rem 2rem;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  width: 100%;
+}
+
+.action-button.primary {
+  background: #3498db;
+  color: white;
+}
+
+.action-button.primary:hover:not(:disabled) {
+  background: #2980b9;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(52, 152, 219, 0.3);
+}
+
+.action-button.success {
+  background: #27ae60;
+  color: white;
+}
+
+.action-button.success:hover:not(:disabled) {
+  background: #229954;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(39, 174, 96, 0.3);
+}
+
+.action-button.secondary {
+  background: #95a5a6;
+  color: white;
+}
+
+.action-button.secondary:hover:not(:disabled) {
+  background: #7f8c8d;
+}
+
+.action-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.register-form {
+  margin-top: 1rem;
+  text-align: left;
+}
+
+.register-form .form-group {
+  margin-bottom: 1rem;
+}
+
+.register-form label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: #2c3e50;
+  font-size: 0.9rem;
+}
+
+.register-form select {
+  width: 100%;
+  padding: 0.75rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 6px;
+  font-size: 1rem;
+}
+
+.register-form select:focus {
+  outline: none;
+  border-color: #3498db;
+}
+
+.register-form small {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.8rem;
+  color: #95a5a6;
+}
+
+.form-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.form-actions button {
+  flex: 1;
+}
