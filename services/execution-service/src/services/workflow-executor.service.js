@@ -1,104 +1,117 @@
 const { v4: uuidv4 } = require("uuid");
-const { getWorkflowDefinition } = require("../workflows/hardcoded-workflows");
-const workflowServiceClient = require("../clients/workflow-service.client");
-const workflowInstanceRepository = require("../repositories/workflow-instance.repository");
-const executionStateRepository = require("../repositories/execution-state.repository");
-const stepHistoryRepository = require("../repositories/step-history.repository");
-const stepProcessorService = require("./step-processor.service");
+const axios = require("axios");
+
+const WORKFLOW_SERVICE_URL =
+  process.env.WORKFLOW_SERVICE_URL || "http://workflow-service:3000";
 
 class WorkflowExecutorService {
   async startWorkflow(workflowId, tenantId, triggerData) {
-    // Try to load workflow from Workflow Service (Phase 2)
-    let workflowDef;
+    console.log(
+      `[WorkflowExecutor] Starting workflow: ${workflowId} for tenant: ${tenantId}`
+    );
+
     try {
+      // 1. Load workflow definition
       console.log(
         "[WorkflowExecutor] Attempting to load workflow from Workflow Service..."
       );
-      const dbWorkflow = await workflowServiceClient.getWorkflow(
+      const workflowDef = await this.loadWorkflowFromService(
         workflowId,
         tenantId
       );
 
-      if (dbWorkflow && dbWorkflow.status === "APPROVED") {
-        console.log("[WorkflowExecutor] Using workflow from database");
-        workflowDef = {
-          workflow_id: dbWorkflow.workflow_id,
-          tenant_id: dbWorkflow.tenant_id,
-          name: dbWorkflow.name,
-          steps: dbWorkflow.steps_json.steps || [],
-        };
-      } else {
-        console.log(
-          "[WorkflowExecutor] Workflow not approved or not found, falling back to hardcoded"
-        );
-        workflowDef = getWorkflowDefinition(workflowId);
+      if (!workflowDef) {
+        throw new Error(`Workflow ${workflowId} not found`);
       }
-    } catch (error) {
+
+      console.log("[WorkflowExecutor] Using workflow from database");
+
+      // 2. Generate instance ID
+      const instanceId = `inst-${uuidv4()}`;
+      console.log(`[WorkflowExecutor] Generated instance ID: ${instanceId}`);
+
+      // 3. Create workflow instance record
+      const workflowInstanceRepository = require("../repositories/workflow-instance.repository");
+      await workflowInstanceRepository.create({
+        instance_id: instanceId,
+        workflow_id: workflowId,
+        tenant_id: tenantId,
+        status: "RUNNING",
+        trigger_data: triggerData,
+      });
+      console.log(`[WorkflowExecutor] ✓ Workflow instance created`);
+
+      // 4. Initialize workflow variables
+      const variables = {
+        ...triggerData,
+        tenant_id: tenantId,
+      };
+
+      // 5. Create workflow state
+      const workflowStateRepository = require("../repositories/workflow-state.repository");
+      await workflowStateRepository.create({
+        instance_id: instanceId,
+        current_step: null,
+        variables: variables,
+      });
+      console.log(`[WorkflowExecutor] ✓ Workflow state initialized`);
+
+      // 6. Find start step
+      const startStep = this.findStartStep(workflowDef.steps_json.steps);
+      if (!startStep) {
+        throw new Error("No start event found in workflow");
+      }
+
       console.log(
-        "[WorkflowExecutor] Workflow Service unavailable, using hardcoded definition"
+        `[WorkflowExecutor] Starting workflow at step: ${startStep.step_id} (${startStep.step_name})`
       );
-      workflowDef = getWorkflowDefinition(workflowId);
+
+      // 7. Start executing from start step (async - don't wait)
+      setImmediate(() => {
+        this.executeNextStep(
+          instanceId,
+          tenantId,
+          startStep.step_id,
+          workflowDef.steps_json,
+          variables
+        ).catch((error) => {
+          console.error("[WorkflowExecutor] Workflow execution failed:", error);
+        });
+      });
+
+      // 8. Return immediately (for sync trigger)
+      return {
+        instanceId: instanceId,
+        status: "RUNNING",
+        workflowId: workflowId,
+      };
+    } catch (error) {
+      console.error("[WorkflowExecutor] Failed to start workflow:", error);
+      throw error;
     }
-
-    if (!workflowDef) {
-      throw new Error(`Workflow definition not found: ${workflowId}`);
-    }
-
-    // Validate tenant ownership
-    if (workflowDef.tenant_id !== tenantId) {
-      throw new Error(
-        `Workflow ${workflowId} does not belong to tenant ${tenantId}`
-      );
-    }
-
-    // Create workflow instance
-    const instanceId = `inst-${uuidv4()}`;
-    await workflowInstanceRepository.create(
-      instanceId,
-      workflowId,
-      tenantId,
-      triggerData
-    );
-
-    // Initialize execution state
-    const initialVariables = {
-      ...triggerData,
-      tenant_id: tenantId, // Add tenant_id to variables
-    };
-    await executionStateRepository.create(instanceId, "1", initialVariables);
-
-    console.log(`Workflow instance created: ${instanceId}`);
-
-    // Find the start event - flexible search
-    const startStep = this.findStartStep(workflowDef.steps);
-
-    if (!startStep) {
-      throw new Error("No start event found in workflow");
-    }
-
-    console.log(
-      `Starting workflow at step: ${startStep.step_id} (${startStep.step_name})`
-    );
-
-    // Start executing from start step
-    await this.executeNextStep(
-      instanceId,
-      tenantId,
-      startStep.step_id,
-      workflowDef,
-      initialVariables
-    );
-
-    return {
-      instanceId,
-      status: "RUNNING",
-      message: "Workflow started",
-    };
   }
 
-  /**
-   * Find start step - supports multiple formats
-   */
+  async loadWorkflowFromService(workflowId, tenantId) {
+    try {
+      const response = await axios.get(
+        `${WORKFLOW_SERVICE_URL}/api/workflows/${workflowId}`,
+        {
+          headers: { "X-Tenant-ID": tenantId },
+          timeout: 5000,
+        }
+      );
+
+      console.log("[WorkflowServiceClient] Workflow fetched successfully");
+      return response.data.workflow;
+    } catch (error) {
+      console.error(
+        "[WorkflowServiceClient] Failed to fetch workflow:",
+        error.message
+      );
+      return null;
+    }
+  }
+
   findStartStep(steps) {
     if (!steps || steps.length === 0) {
       return null;
@@ -121,15 +134,14 @@ class WorkflowExecutorService {
       return startStep;
     }
 
-    // Last resort: use first step if it doesn't have incoming connections
-    // (This would require tracking connections, so just use first step)
+    // Last resort: use first step
     console.warn("No explicit start event found, using first step");
     return steps[0];
   }
 
   async executeNextStep(instanceId, tenantId, stepId, workflowDef, variables) {
     try {
-      // Use step processor's find method
+      const stepProcessorService = require("./step-processor.service");
       const step = stepProcessorService.findStep(workflowDef, stepId);
 
       if (!step) {
@@ -138,173 +150,91 @@ class WorkflowExecutorService {
         return;
       }
 
-      // Log step start
-      const stepHistory = await stepHistoryRepository.create(
-        instanceId,
-        step.step_name,
-        step.type,
-        "STARTED",
-        { variables }
+      console.log(
+        `Executing step: ${step.step_id} (${step.step_name}) - Type: ${step.type}`
       );
 
-      try {
-        // Process step
-        const result = await stepProcessorService.processStep(step, variables);
-
-        // Update variables if step produced output
-        if (result.newVariables) {
-          variables = { ...variables, ...result.newVariables };
-        }
-
-        // Log step completion
-        await stepHistoryRepository.complete(
-          stepHistory.step_id,
-          "COMPLETED",
-          result.output
+      // Check if this is a user task - PAUSE execution and set WAITING status
+      if (step.type === "user-task") {
+        console.log(
+          `✓ User task detected: ${step.step_id}. Setting workflow to WAITING status.`
         );
 
-        // Check if workflow should wait (user task)
-        if (result.waiting) {
-          await workflowInstanceRepository.updateStatus(instanceId, "WAITING");
-          await executionStateRepository.update(instanceId, stepId, variables);
+        const workflowInstanceRepository = require("../repositories/workflow-instance.repository");
+        await workflowInstanceRepository.updateStatus(instanceId, "WAITING");
 
-          return {
-            status: "WAITING",
-            message: "Workflow waiting for user action",
-            currentStep: step.step_name,
-          };
-        }
+        const workflowStateRepository = require("../repositories/workflow-state.repository");
+        await workflowStateRepository.update(instanceId, {
+          current_step: step.step_id,
+          variables,
+        });
 
-        // Check if workflow is completed
-        if (result.completed) {
-          await workflowInstanceRepository.updateStatus(
-            instanceId,
-            "COMPLETED"
-          );
-          await executionStateRepository.update(instanceId, stepId, variables);
-
-          return {
-            status: "COMPLETED",
-            message: "Workflow completed successfully",
-          };
-        }
-
-        // Get next step using processor's method
-        const nextStepId = stepProcessorService.getNextStepId(step, variables);
-
-        if (nextStepId) {
-          // Recursively execute next step
-          await this.executeNextStep(
-            instanceId,
-            tenantId,
-            nextStepId,
-            workflowDef,
-            variables
-          );
-        } else {
-          // No next step found, mark workflow as completed
-          await workflowInstanceRepository.updateStatus(
-            instanceId,
-            "COMPLETED"
-          );
-          await executionStateRepository.update(instanceId, stepId, variables);
-        }
-      } catch (stepError) {
-        console.error(`Step execution failed: ${step.step_name}`, stepError);
-
-        // Log step failure
-        await stepHistoryRepository.complete(
-          stepHistory.step_id,
-          "FAILED",
-          null,
-          stepError.message
-        );
-
-        // Mark workflow as failed
-        await workflowInstanceRepository.updateStatus(
+        // Log step as started (waiting for user input)
+        await stepProcessorService.processStep(
           instanceId,
-          "FAILED",
-          stepError.message
+          tenantId,
+          stepId,
+          workflowDef,
+          variables
         );
 
-        throw stepError;
+        console.log(
+          `✓ Workflow ${instanceId} is now WAITING for user input at step ${step.step_id}`
+        );
+        return; // STOP execution here - wait for resume
+      }
+
+      // For other step types, process normally
+      const result = await stepProcessorService.processStep(
+        instanceId,
+        tenantId,
+        stepId,
+        workflowDef,
+        variables
+      );
+
+      // Update variables with step result
+      if (result && result.output) {
+        variables = { ...variables, ...result.output };
+
+        const workflowStateRepository = require("../repositories/workflow-state.repository");
+        await workflowStateRepository.update(instanceId, { variables });
+      }
+
+      // Get next step
+      const nextStepId = stepProcessorService.getNextStepId(step, variables);
+
+      if (nextStepId) {
+        await this.executeNextStep(
+          instanceId,
+          tenantId,
+          nextStepId,
+          workflowDef,
+          variables
+        );
+      } else {
+        console.log(`Workflow ${instanceId} completed successfully`);
+        const workflowInstanceRepository = require("../repositories/workflow-instance.repository");
+        await workflowInstanceRepository.updateStatus(instanceId, "COMPLETED");
       }
     } catch (error) {
-      console.error(`Workflow execution failed: ${instanceId}`, error);
+      console.error("Step execution error:", error);
+      await this.markWorkflowFailed(instanceId, error.message);
+    }
+  }
 
+  async markWorkflowFailed(instanceId, errorMessage) {
+    try {
+      const workflowInstanceRepository = require("../repositories/workflow-instance.repository");
       await workflowInstanceRepository.updateStatus(
         instanceId,
         "FAILED",
-        error.message
+        errorMessage
       );
-
-      return {
-        status: "FAILED",
-        message: error.message,
-      };
+      console.log(`Workflow ${instanceId} marked as FAILED`);
+    } catch (error) {
+      console.error("Failed to mark workflow as failed:", error);
     }
-  }
-
-  async resumeWorkflow(instanceId, tenantId, stepId, userInput) {
-    // Get workflow instance
-    const instance = await workflowInstanceRepository.findById(
-      instanceId,
-      tenantId
-    );
-    if (!instance) {
-      throw new Error("Workflow instance not found");
-    }
-
-    if (instance.status !== "WAITING") {
-      throw new Error(`Cannot resume workflow with status: ${instance.status}`);
-    }
-
-    // Load workflow definition
-    const workflowDef = getWorkflowDefinition(instance.workflow_id);
-    if (!workflowDef) {
-      throw new Error(`Workflow definition not found: ${instance.workflow_id}`);
-    }
-
-    // Update workflow status to RUNNING
-    await workflowInstanceRepository.updateStatus(instanceId, "RUNNING");
-
-    // Get current state and update with user input
-    const state = await executionStateRepository.findByInstanceId(instanceId);
-    const variables = { ...state.variables, ...userInput };
-    await executionStateRepository.updateVariables(instanceId, userInput);
-
-    // Continue execution from next step
-    const currentStep = this.findStep(workflowDef.steps, state.current_step);
-    const nextStepId = currentStep.next;
-
-    // Update current step to next
-    await executionStateRepository.update(instanceId, nextStepId, variables);
-
-    // Continue execution
-    return await this.executeWorkflow(instanceId, workflowDef, tenantId);
-  }
-
-  findStep(steps, stepId) {
-    return steps.find((s) => s.step_id === stepId);
-  }
-
-  async getWorkflowStatus(instanceId, tenantId) {
-    const instance = await workflowInstanceRepository.findById(
-      instanceId,
-      tenantId
-    );
-    if (!instance) {
-      throw new Error("Workflow instance not found");
-    }
-
-    const state = await executionStateRepository.findByInstanceId(instanceId);
-    const history = await stepHistoryRepository.findByInstanceId(instanceId);
-
-    return {
-      instance,
-      state,
-      history,
-    };
   }
 }
 

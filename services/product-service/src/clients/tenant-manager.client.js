@@ -46,7 +46,18 @@ class TenantManagerClient {
 
       console.log(`[TenantManagerClient] Response:`, response.data);
 
-      const workflow = response.data.workflow;
+      // Fix: Get workflow from workflows array (not workflow singular)
+      const workflow =
+        response.data.workflows && response.data.workflows.length > 0
+          ? response.data.workflows[0]
+          : null;
+
+      if (!workflow) {
+        console.log(`[TenantManagerClient] No workflow found in response`);
+        return null;
+      }
+
+      console.log(`[TenantManagerClient] Extracted workflow:`, workflow);
 
       // Cache the result
       await redisClient.setEx(
@@ -55,7 +66,7 @@ class TenantManagerClient {
         JSON.stringify(workflow)
       );
       console.log(
-        `[TenantManagerClient] Cached workflow for ${tenantId}:${triggerEvent}`
+        `[TenantManagerClient] ✓ Cached workflow for ${tenantId}:${triggerEvent}`
       );
 
       return workflow;
@@ -78,7 +89,9 @@ class TenantManagerClient {
           error.response.data
         );
       }
-      throw error;
+
+      // Return null instead of throwing to allow order creation to continue
+      return null;
     }
   }
 

@@ -1,6 +1,6 @@
 const pool = require("../config/database");
 
-class ExecutionStateRepository {
+class WorkflowStateRepository {
   async create(stateData) {
     const query = `
       INSERT INTO execution_repository.workflow_state 
@@ -49,6 +49,17 @@ class ExecutionStateRepository {
 
     return result.rows[0];
   }
+
+  async delete(instanceId) {
+    const query = `
+      DELETE FROM execution_repository.workflow_state
+      WHERE instance_id = $1
+      RETURNING *
+    `;
+
+    const result = await pool.query(query, [instanceId]);
+    return result.rows[0];
+  }
 }
 
-module.exports = new ExecutionStateRepository();
+module.exports = new WorkflowStateRepository();

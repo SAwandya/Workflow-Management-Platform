@@ -9,7 +9,7 @@ class WorkflowInterceptor {
   async checkForWorkflow(tenantId, eventType) {
     try {
       console.log(
-        `Workflow interceptor: Checking for ${eventType} workflow for tenant ${tenantId}`
+        `[WorkflowInterceptor] Checking for workflow: ${tenantId}:${eventType}`
       );
 
       const response = await axios.get(
@@ -22,27 +22,34 @@ class WorkflowInterceptor {
 
       if (response.data.workflows && response.data.workflows.length > 0) {
         const workflow = response.data.workflows[0];
-        console.log(`Custom workflow found: ${workflow.workflow_id}`);
+        console.log(
+          `[WorkflowInterceptor] ✓ Custom workflow found: ${workflow.workflow_id}`
+        );
         return workflow;
       }
 
-      console.log("No custom workflow found, will use default behavior");
+      console.log("[WorkflowInterceptor] No custom workflow found");
       return null;
     } catch (error) {
       if (error.response?.status === 404) {
-        console.log("No workflow registered for this event");
-      } else {
-        console.error("Error checking for workflow:", error.message);
+        console.log(
+          "[WorkflowInterceptor] No workflow registered for this event"
+        );
+        return null;
       }
-      return null;
+
+      console.error(
+        "[WorkflowInterceptor] Error checking for workflow:",
+        error.message
+      );
+      return null; // Don't throw - order creation should succeed even if workflow check fails
     }
   }
 
   async triggerWorkflow(workflowId, tenantId, triggerData) {
     try {
-      console.log(
-        `Triggering custom workflow: ${workflowId} for tenant: ${tenantId}`
-      );
+      console.log(`[WorkflowInterceptor] Triggering workflow: ${workflowId}`);
+      console.log(`[WorkflowInterceptor] Trigger data:`, triggerData);
 
       const response = await axios.post(
         `${API_GATEWAY_URL}/api/gateway/workflows/start`,
@@ -59,14 +66,18 @@ class WorkflowInterceptor {
         }
       );
 
-      console.log("Workflow triggered successfully:", response.data);
+      console.log("[WorkflowInterceptor] ✓ Workflow triggered successfully");
       return {
         instanceId: response.data.instanceId,
         status: response.data.status,
       };
     } catch (error) {
-      console.error("Failed to trigger workflow:", error.message);
-      // Don't throw - order creation should succeed even if workflow fails
+      console.error(
+        "[WorkflowInterceptor] Failed to trigger workflow:",
+        error.message
+      );
+
+      // Return error but don't throw - order should still be created
       return {
         instanceId: null,
         status: "FAILED",

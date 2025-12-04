@@ -10,7 +10,7 @@ router.get("/:tenantId/workflows/query", async (req, res) => {
     const { trigger_event } = req.query;
 
     console.log(
-      `Querying workflows for tenant: ${tenantId}, trigger_event: ${trigger_event}`
+      `[TenantManager] Query: tenant=${tenantId}, event=${trigger_event}`
     );
 
     if (!trigger_event) {
@@ -26,7 +26,7 @@ router.get("/:tenantId/workflows/query", async (req, res) => {
     );
 
     if (!workflows || workflows.length === 0) {
-      console.log("No workflows found for this trigger event");
+      console.log("[TenantManager] No workflows found for this trigger event");
       return res.status(404).json({
         error: "No workflow found for this trigger event",
         tenant_id: tenantId,
@@ -34,13 +34,15 @@ router.get("/:tenantId/workflows/query", async (req, res) => {
       });
     }
 
+    console.log(`[TenantManager] ✓ Found ${workflows.length} workflow(s)`);
+
     res.json({
       tenant_id: tenantId,
       trigger_event: trigger_event,
       workflows: workflows,
     });
   } catch (error) {
-    console.error("Error querying workflows:", error);
+    console.error("[TenantManager] Error querying workflows:", error);
     res.status(500).json({
       error: "Failed to query workflows",
       details: error.message,

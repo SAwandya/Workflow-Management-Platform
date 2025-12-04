@@ -542,3 +542,50 @@ X-Tenant-ID: {{tenantId}}
 
 ### 50. List All Workflow Instances (For Cleanup Verification)
 GET {{apiGateway}}/api/gateway/workflows/instances/recent?tenant_id={{tenantId}}&limit=50
+
+### ============================================
+### COMPLETE FLOW VERIFICATION
+### ============================================
+
+### 51. Step-by-Step Flow Test
+
+### STEP 1: Check workflow registration
+GET {{tenantManager}}/api/tenants/{{tenantId}}/workflows/query?trigger_event=ORDER_CREATED
+
+### STEP 2: Create order (should trigger workflow)
+# @name flowTestOrder
+POST {{productService}}/api/orders
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+
+{
+  "customer_id": "flow-test-customer",
+  "items": [
+    {
+      "product": "Flow Test Server",
+      "quantity": 1,
+      "price": 15000
+    }
+  ],
+  "total": 15000
+}
+
+### STEP 3: Extract and check instance status
+# After running STEP 2, copy the instanceId from response
+# Replace INSTANCE-ID below
+GET {{apiGateway}}/api/gateway/workflows/instances/INSTANCE-ID/status?tenant_id={{tenantId}}
+
+### 52. Debug: Check Product Service Workflow Detection
+# This should show if workflow was found
+# Run: docker logs wmc-product-service --tail 50 | grep -i "workflow"
+
+### 53. Debug: Check Execution Service Logs
+# This should show workflow execution steps
+# Run: docker logs wmc-execution-service --tail 50
+
+### 54. Verify Order was Created
+GET {{productService}}/api/orders
+X-Tenant-ID: {{tenantId}}
+
+### 55. Verify Workflow Instance was Created
+GET {{apiGateway}}/api/gateway/workflows/instances/recent?tenant_id={{tenantId}}&limit=1

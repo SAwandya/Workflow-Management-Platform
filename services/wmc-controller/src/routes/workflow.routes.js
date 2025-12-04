@@ -46,4 +46,38 @@ router.get("/instances/recent", async (req, res) => {
   }
 });
 
+// Start workflow
+router.post("/start", async (req, res) => {
+  try {
+    const { workflow_id, tenant_id, trigger_data } = req.body;
+
+    console.log(
+      `[WMCController] Starting workflow: ${workflow_id} for tenant: ${tenant_id}`
+    );
+
+    if (!workflow_id || !tenant_id) {
+      return res.status(400).json({
+        error: "Missing required fields: workflow_id, tenant_id",
+      });
+    }
+
+    // Start workflow via Execution Service
+    const result = await executionServiceClient.startWorkflow(
+      workflow_id,
+      tenant_id,
+      trigger_data || {}
+    );
+
+    console.log(`[WMCController] ✓ Workflow started: ${result.instanceId}`);
+
+    res.json(result);
+  } catch (error) {
+    console.error("[WMCController] Failed to start workflow:", error.message);
+    res.status(500).json({
+      error: "Failed to start workflow",
+      details: error.message,
+    });
+  }
+});
+
 module.exports = router;

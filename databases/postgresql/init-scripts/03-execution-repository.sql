@@ -2,10 +2,10 @@
 
 -- Workflow Instances Table
 CREATE TABLE execution_repository.workflow_instances (
-  instance_id VARCHAR(100) PRIMARY KEY,
-  workflow_id VARCHAR(100) NOT NULL,
-  tenant_id VARCHAR(100) NOT NULL,
-  status VARCHAR(20) NOT NULL DEFAULT 'RUNNING',
+  instance_id VARCHAR(200) PRIMARY KEY,  -- Increased to 200
+  workflow_id VARCHAR(200) NOT NULL,     -- Increased to 200
+  tenant_id VARCHAR(200) NOT NULL,       -- Increased to 200
+  status VARCHAR(50) NOT NULL DEFAULT 'RUNNING',
   trigger_data JSONB DEFAULT '{}'::jsonb,
   started_at TIMESTAMP DEFAULT NOW(),
   completed_at TIMESTAMP,
@@ -14,8 +14,8 @@ CREATE TABLE execution_repository.workflow_instances (
 
 -- Workflow State Table
 CREATE TABLE execution_repository.workflow_state (
-  instance_id VARCHAR(100) PRIMARY KEY REFERENCES execution_repository.workflow_instances(instance_id) ON DELETE CASCADE,
-  current_step VARCHAR(100),  -- Changed to VARCHAR to support both numeric and BPMN IDs
+  instance_id VARCHAR(200) PRIMARY KEY REFERENCES execution_repository.workflow_instances(instance_id) ON DELETE CASCADE,
+  current_step VARCHAR(200),  -- Increased to 200
   variables JSONB DEFAULT '{}'::jsonb,
   updated_at TIMESTAMP DEFAULT NOW()
 );
@@ -23,8 +23,8 @@ CREATE TABLE execution_repository.workflow_state (
 -- Step History Table
 CREATE TABLE execution_repository.step_history (
   history_id SERIAL PRIMARY KEY,
-  instance_id VARCHAR(100) NOT NULL REFERENCES execution_repository.workflow_instances(instance_id) ON DELETE CASCADE,
-  step_id VARCHAR(100) NOT NULL,  -- Changed from INTEGER to VARCHAR
+  instance_id VARCHAR(200) NOT NULL REFERENCES execution_repository.workflow_instances(instance_id) ON DELETE CASCADE,
+  step_id VARCHAR(200) NOT NULL,  -- Increased to 200
   step_name VARCHAR(255) NOT NULL,
   step_type VARCHAR(50) NOT NULL,
   status VARCHAR(20) NOT NULL DEFAULT 'STARTED',

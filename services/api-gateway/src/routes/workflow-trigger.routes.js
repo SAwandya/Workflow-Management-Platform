@@ -45,6 +45,55 @@ router.post(
   }
 );
 
+// Start workflow
+router.post(
+  "/start",
+  authMiddleware.authenticate.bind(authMiddleware),
+  async (req, res) => {
+    try {
+      const { workflow_id, tenant_id, trigger_data } = req.body;
+
+      console.log(
+        `[APIGateway] Starting workflow: ${workflow_id} for tenant: ${tenant_id}`
+      );
+
+      if (!workflow_id || !tenant_id) {
+        return res.status(400).json({
+          error: "Missing required fields: workflow_id, tenant_id",
+        });
+      }
+
+      // Forward to WMC Controller
+      const response = await axios.post(
+        `${WMC_CONTROLLER_URL}/api/workflows/start`,
+        {
+          workflow_id,
+          tenant_id,
+          trigger_data: trigger_data || {},
+        },
+        { timeout: 30000 }
+      );
+
+      console.log(
+        `[APIGateway] ✓ Workflow started: ${response.data.instanceId}`
+      );
+
+      res.json(response.data);
+    } catch (error) {
+      console.error("[APIGateway] Workflow start failed:", error.message);
+
+      if (error.response) {
+        res.status(error.response.status).json(error.response.data);
+      } else {
+        res.status(500).json({
+          error: "Gateway error",
+          details: error.message,
+        });
+      }
+    }
+  }
+);
+
 // Resume workflow
 router.post(
   "/instances/:instanceId/resume",
