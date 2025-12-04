@@ -16,7 +16,7 @@ function AdminActionsPanel({ workflow, onWorkflowUpdate }) {
 
   const WORKFLOW_SERVICE =
     process.env.REACT_APP_WORKFLOW_SERVICE || "http://localhost:3006";
-  const TENANT_MANAGER = "http://localhost:3002";
+  const TENANT_MANAGER = "http://localhost:3002"; // Browser can access this directly
   const TENANT_ID = process.env.REACT_APP_TENANT_ID || "tenant-a";
 
   const handleSubmitForApproval = async () => {
@@ -71,51 +71,104 @@ function AdminActionsPanel({ workflow, onWorkflowUpdate }) {
       setError(null);
       setSuccess(null);
 
-      // First, check if already registered
-      const existingResponse = await axios.get(
-        `${TENANT_MANAGER}/api/tenants/${TENANT_ID}/workflows/query`,
-        { params: { trigger_event: registerData.trigger_event } }
-      );
-
-      if (
-        existingResponse.data.workflows &&
-        existingResponse.data.workflows.length > 0
-      ) {
-        const existingWorkflow = existingResponse.data.workflows[0];
-
-        if (
-          !window.confirm(
-            `A workflow is already registered for ${registerData.trigger_event}.\n` +
-              `Current: ${existingWorkflow.workflow_name}\n\n` +
-              `Do you want to replace it with this workflow?`
-          )
-        ) {
-          setRegistering(false);
-          return;
-        }
-
-        // Delete existing registration
-        await axios.delete(
-          `${TENANT_MANAGER}/api/tenants/${TENANT_ID}/workflows/${existingWorkflow.registry_id}`
-        );
-      }
-
-      // Register new workflow
-      await axios.post(`${TENANT_MANAGER}/api/tenants/${TENANT_ID}/workflows`, {
+      console.log("Registering workflow:", {
         workflow_id: workflow.workflow_id,
         workflow_name: workflow.name,
         trigger_type: registerData.trigger_type,
         trigger_event: registerData.trigger_event,
       });
 
+      // First, check if already registered for this event
+      try {
+        const existingResponse = await axios.get(
+          `${TENANT_MANAGER}/api/tenants/${TENANT_ID}/workflows/query`,
+          {
+            params: { trigger_event: registerData.trigger_event },
+            timeout: 5000,
+          }
+        );
+
+        console.log("Existing workflows response:", existingResponse.data);
+
+        if (
+          existingResponse.data.workflows &&
+          existingResponse.data.workflows.length > 0
+        ) {
+          const existingWorkflow = existingResponse.data.workflows[0];
+
+          const confirmed = window.confirm(
+            `A workflow is already registered for ${registerData.trigger_event}.\n\n` +
+              `Current: ${existingWorkflow.workflow_name} (${existingWorkflow.workflow_id})\n` +
+              `New: ${workflow.name} (${workflow.workflow_id})\n\n` +
+              `Do you want to replace it?`
+          );
+
+          if (!confirmed) {
+            setRegistering(false);
+            return;
+          }
+
+          // Delete existing registration
+          console.log(
+            "Deleting existing registration:",
+            existingWorkflow.registry_id
+          );
+          await axios.delete(
+            `${TENANT_MANAGER}/api/tenants/${TENANT_ID}/workflows/${existingWorkflow.registry_id}`
+          );
+          console.log("Existing registration deleted");
+        }
+      } catch (checkError) {
+        // If it's a 404 or "No workflow found", that's OK - means nothing is registered
+        if (
+          checkError.response?.status === 404 ||
+          checkError.response?.data?.error ===
+            "No workflow found for this trigger event"
+        ) {
+          console.log(
+            "No existing workflow for this event, proceeding with registration"
+          );
+        } else {
+          // Other errors should be thrown
+          throw checkError;
+        }
+      }
+
+      // Register new workflow
+      const registrationPayload = {
+        workflow_id: workflow.workflow_id,
+        workflow_name: workflow.name,
+        trigger_type: registerData.trigger_type,
+        trigger_event: registerData.trigger_event,
+      };
+
+      console.log("Registering new workflow:", registrationPayload);
+
+      const response = await axios.post(
+        `${TENANT_MANAGER}/api/tenants/${TENANT_ID}/workflows`,
+        registrationPayload,
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+          timeout: 5000,
+        }
+      );
+
+      console.log("Registration successful:", response.data);
+
       setSuccess(
-        `Workflow registered for ${registerData.trigger_event} event!`
+        `Workflow registered for ${registerData.trigger_event} event successfully!`
       );
       setShowRegisterForm(false);
+
+      // Clear success message after 5 seconds
+      setTimeout(() => setSuccess(null), 5000);
     } catch (err) {
-      setError(
-        "Failed to register: " + (err.response?.data?.details || err.message)
-      );
+      console.error("Registration error:", err);
+      const errorMessage =
+        err.response?.data?.details || err.response?.data?.error || err.message;
+      setError("Failed to register workflow: " + errorMessage);
     } finally {
       setRegistering(false);
     }

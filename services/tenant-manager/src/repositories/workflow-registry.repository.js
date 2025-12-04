@@ -88,6 +88,21 @@ class WorkflowRegistryRepository {
     const result = await pool.query(query, [tenantId, workflowId]);
     return result.rows[0].exists;
   }
+
+  async findByTriggerEvent(tenantId, triggerEvent) {
+    const query = `
+      SELECT * FROM tenant_manager.workflow_registry
+      WHERE tenant_id = $1 AND trigger_event = $2 AND status = 'ACTIVE'
+    `;
+
+    try {
+      const result = await pool.query(query, [tenantId, triggerEvent]);
+      return result.rows;
+    } catch (error) {
+      console.error("Error finding workflows by trigger event:", error);
+      throw error;
+    }
+  }
 }
 
 module.exports = new WorkflowRegistryRepository();

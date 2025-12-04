@@ -23,9 +23,20 @@
 }
 
 .action-error {
+  align-items: flex-start;
   background: #fee;
-  color: #c33;
   border-left: 4px solid #e74c3c;
+  color: #c33;
+  word-break: break-word;
+}
+
+.action-error pre {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 4px;
+  font-size: 0.85rem;
+  margin: 0.5rem 0 0 0;
+  overflow-x: auto;
+  padding: 0.5rem;
 }
 
 .action-success {

@@ -3,28 +3,76 @@ const workflowRegistryController = require("../controllers/workflow-registry.con
 
 const router = express.Router();
 
+// Query workflows by trigger event - MUST come BEFORE /:tenantId/workflows
+router.get("/:tenantId/workflows/query", async (req, res) => {
+  try {
+    const { tenantId } = req.params;
+    const { trigger_event } = req.query;
+
+    console.log(
+      `Querying workflows for tenant: ${tenantId}, trigger_event: ${trigger_event}`
+    );
+
+    if (!trigger_event) {
+      return res.status(400).json({
+        error: "Missing trigger_event parameter",
+      });
+    }
+
+    const workflowRegistryRepository = require("../repositories/workflow-registry.repository");
+    const workflows = await workflowRegistryRepository.findByTriggerEvent(
+      tenantId,
+      trigger_event
+    );
+
+    if (!workflows || workflows.length === 0) {
+      console.log("No workflows found for this trigger event");
+      return res.status(404).json({
+        error: "No workflow found for this trigger event",
+        tenant_id: tenantId,
+        trigger_event: trigger_event,
+      });
+    }
+
+    res.json({
+      tenant_id: tenantId,
+      trigger_event: trigger_event,
+      workflows: workflows,
+    });
+  } catch (error) {
+    console.error("Error querying workflows:", error);
+    res.status(500).json({
+      error: "Failed to query workflows",
+      details: error.message,
+    });
+  }
+});
+
+// Register workflow
 router.post(
   "/:tenantId/workflows",
   workflowRegistryController.registerWorkflow.bind(workflowRegistryController)
 );
+
+// Get all workflows for tenant
 router.get(
   "/:tenantId/workflows",
   workflowRegistryController.getWorkflowsByTenant.bind(
     workflowRegistryController
   )
 );
-router.get(
-  "/:tenantId/workflows/query",
-  workflowRegistryController.getWorkflowByEvent.bind(workflowRegistryController)
-);
+
+// Update workflow status
 router.patch(
   "/:tenantId/workflows/:workflowId/status",
   workflowRegistryController.updateWorkflowStatus.bind(
     workflowRegistryController
   )
 );
+
+// Delete workflow - Fixed to use registry_id instead of workflowId
 router.delete(
-  "/:tenantId/workflows/:workflowId",
+  "/:tenantId/workflows/:registryId",
   workflowRegistryController.deleteWorkflow.bind(workflowRegistryController)
 );
 
