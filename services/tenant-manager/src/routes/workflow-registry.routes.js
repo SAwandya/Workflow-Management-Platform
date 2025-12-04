@@ -70,10 +70,39 @@ router.patch(
   )
 );
 
-// Delete workflow - Fixed to use registry_id instead of workflowId
-router.delete(
-  "/:tenantId/workflows/:registryId",
-  workflowRegistryController.deleteWorkflow.bind(workflowRegistryController)
-);
+// Delete workflow by registry_id
+router.delete("/:tenantId/workflows/:registryId", async (req, res) => {
+  try {
+    const { tenantId, registryId } = req.params;
+
+    console.log(
+      `Deleting workflow registry entry: ${registryId} for tenant: ${tenantId}`
+    );
+
+    const workflowRegistryRepository = require("../repositories/workflow-registry.repository");
+
+    // Delete by registry_id
+    const deleted = await workflowRegistryRepository.deleteById(
+      parseInt(registryId)
+    );
+
+    if (!deleted) {
+      return res.status(404).json({
+        error: "Workflow registry entry not found",
+      });
+    }
+
+    res.json({
+      message: "Workflow deleted successfully",
+      deleted: deleted,
+    });
+  } catch (error) {
+    console.error("Error deleting workflow:", error);
+    res.status(500).json({
+      error: "Failed to delete workflow",
+      details: error.message,
+    });
+  }
+});
 
 module.exports = router;

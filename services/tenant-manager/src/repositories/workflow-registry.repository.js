@@ -78,6 +78,22 @@ class WorkflowRegistryRepository {
     return result.rows[0];
   }
 
+  async deleteById(registryId) {
+    const query = `
+      DELETE FROM tenant_manager.workflow_registry
+      WHERE registry_id = $1
+      RETURNING *
+    `;
+
+    try {
+      const result = await pool.query(query, [registryId]);
+      return result.rows[0];
+    } catch (error) {
+      console.error("Error deleting workflow registry entry:", error);
+      throw error;
+    }
+  }
+
   async exists(tenantId, workflowId) {
     const query = `
       SELECT EXISTS(

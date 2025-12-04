@@ -161,6 +161,10 @@ GET {{tenantManager}}/api/tenants/{{tenantId}}/workflows
 ### 20. Query Workflow by Event
 GET {{tenantManager}}/api/tenants/{{tenantId}}/workflows/query?trigger_event=ORDER_CREATED
 
+### Delete Registered Workflow
+# Replace registry_id with actual value from #19 response
+DELETE {{tenantManager}}/api/tenants/{{tenantId}}/workflows/1
+
 ### ============================================
 ### PRODUCT SERVICE TESTS (Trigger Workflows)
 ### ============================================
@@ -257,3 +261,284 @@ GET {{apiGateway}}/health
 GET {{workflowService}}/health
 ###
 GET {{integrationService}}/health
+
+### ============================================
+### COMPLETE WORKFLOW FLOW TESTS
+### ============================================
+
+### 29. Verify Workflow Registration
+# Check if workflow is registered for ORDER_CREATED event
+GET {{tenantManager}}/api/tenants/{{tenantId}}/workflows/query?trigger_event=ORDER_UPDATED
+
+
+### 30. Create High-Value Order (Triggers Workflow - Requires Approval)
+# @name createHighValueOrder
+POST {{productService}}/api/orders
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+
+{
+  "customer_id": "customer-high-value-001",
+  "items": [
+    {
+      "product": "Enterprise Server Dell PowerEdge R750",
+      "quantity": 2,
+      "price": 8000
+    }
+  ],
+  "total": 16000
+}
+
+### 31. Create Low-Value Order (Triggers Workflow - Auto-Approved)
+# @name createLowValueOrder
+POST {{productService}}/api/orders
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+
+{
+  "customer_id": "customer-low-value-001",
+  "items": [
+    {
+      "product": "Wireless Mouse Logitech MX",
+      "quantity": 10,
+      "price": 50
+    }
+  ],
+  "total": 500
+}
+
+### 32. Get Workflow Instance Status (High-Value Order)
+# Copy instanceId from createHighValueOrder response
+# Replace INSTANCE-ID with actual instanceId
+GET {{apiGateway}}/api/gateway/workflows/instances/INSTANCE-ID/status?tenant_id={{tenantId}}
+
+### 33. Get All Recent Workflow Instances
+GET {{apiGateway}}/api/gateway/workflows/instances/recent?tenant_id={{tenantId}}&limit=10
+
+### 34. Approve Workflow (Manager Action)
+# Copy instanceId and current_step from status response
+# Replace INSTANCE-ID with actual instanceId
+POST {{apiGateway}}/api/gateway/workflows/instances/INSTANCE-ID/resume
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+
+{
+  "step_id": "5",
+  "user_input": {
+    "approved": true,
+    "approver": "manager@tenant-a.com",
+    "approved_at": "2025-12-04T10:00:00Z",
+    "comments": "Order approved - Customer has good credit history"
+  }
+}
+
+### 35. Reject Workflow (Manager Action)
+# Copy instanceId from status response
+# Replace INSTANCE-ID with actual instanceId
+POST {{apiGateway}}/api/gateway/workflows/instances/INSTANCE-ID/resume
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+
+{
+  "step_id": "5",
+  "user_input": {
+    "approved": false,
+    "approver": "manager@tenant-a.com",
+    "rejected_at": "2025-12-04T10:00:00Z",
+    "comments": "Order rejected - Budget exceeded"
+  }
+}
+
+### 36. Check Order Status After Approval
+# Replace ORDER-ID with actual order_id
+GET {{productService}}/api/orders/ORDER-ID
+X-Tenant-ID: {{tenantId}}
+
+### 37. List All Orders for Tenant
+GET {{productService}}/api/orders
+X-Tenant-ID: {{tenantId}}
+
+### ============================================
+### BATCH TESTING - Create Multiple Orders
+### ============================================
+
+### 38. Create Order Batch 1 - High Value
+POST {{productService}}/api/orders
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+
+{
+  "customer_id": "batch-customer-001",
+  "items": [{"product": "HP ProLiant Server", "quantity": 1, "price": 12000}],
+  "total": 12000
+}
+
+### 39. Create Order Batch 2 - High Value
+POST {{productService}}/api/orders
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+
+{
+  "customer_id": "batch-customer-002",
+  "items": [{"product": "Cisco Network Switch", "quantity": 3, "price": 5000}],
+  "total": 15000
+}
+
+### 40. Create Order Batch 3 - Low Value
+POST {{productService}}/api/orders
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+
+{
+  "customer_id": "batch-customer-003",
+  "items": [{"product": "USB Cable", "quantity": 50, "price": 10}],
+  "total": 500
+}
+
+### ============================================
+### DATABASE VERIFICATION QUERIES
+### ============================================
+
+### 41. Get All Workflow Instances from Database
+# Run this in PostgreSQL CLI:
+# docker exec -it wmc-postgresql psql -U wmc_admin -d wmc_platform
+# SELECT instance_id, workflow_id, status, started_at, completed_at 
+# FROM execution_repository.workflow_instances 
+# WHERE tenant_id = 'tenant-a' 
+# ORDER BY started_at DESC LIMIT 10;
+
+### 42. Get Step History for Instance
+# Run this in PostgreSQL CLI:
+# SELECT sh.step_id, sh.step_name, sh.step_type, sh.status, sh.started_at, sh.completed_at
+# FROM execution_repository.step_history sh
+# WHERE sh.instance_id = 'INSTANCE-ID'
+# ORDER BY sh.started_at ASC;
+
+### ============================================
+### WORKFLOW EXECUTION DEBUG
+### ============================================
+
+### 43. Check Workflow Definition
+# Replace WORKFLOW-ID with your workflow_id
+GET {{workflowService}}/api/workflows/wf-1764838349226-dcc3l0
+X-Tenant-ID: {{tenantId}}
+
+### 44. Verify Workflow Has User Task
+# Check the response from #43 - should have a step with type: "user-task"
+# Look for: "step_id": "5", "type": "user-task"
+
+### 45. Check Product Service Logs
+# Run in terminal:
+# docker logs wmc-product-service --tail 50 | grep -i "workflow"
+
+### 46. Check Execution Service Logs
+# Run in terminal:
+# docker logs wmc-execution-service --tail 50 | grep -i "user task"
+
+### ============================================
+### COMPLETE FLOW TEST SEQUENCE
+### ============================================
+
+### STEP 1: Verify Setup
+### Run #29 - Should return your registered workflow
+
+### STEP 2: Create High-Value Order
+### Run #30 - Copy instanceId from response
+
+### STEP 3: Check Workflow Status
+### Run #32 - Replace INSTANCE-ID
+### Expected: status = "WAITING", current_step = "5"
+
+### STEP 4: View in Monitor UI
+### Open: http://localhost:3007/monitor
+### Should see instance with WAITING status (orange)
+
+### STEP 5: Approve via API
+### Run #34 - Replace INSTANCE-ID and step_id
+### Expected: Workflow continues execution
+
+### STEP 6: Verify Completion
+### Run #32 again - Status should now be "COMPLETED"
+
+### STEP 7: Check in Customer UI
+### Open: http://localhost:3008/order/ORDER-ID
+### Should show "Order Confirmed!" message
+
+### ============================================
+### TESTING DIFFERENT SCENARIOS
+### ============================================
+
+### SCENARIO A: Happy Path (High-Value Order Approved)
+# 1. Run #30 (Create high-value order)
+# 2. Run #32 (Check status - should be WAITING)
+# 3. Run #34 (Approve)
+# 4. Run #32 (Check status - should be COMPLETED)
+
+### SCENARIO B: Order Rejected
+# 1. Run #30 (Create high-value order)
+# 2. Run #32 (Check status - should be WAITING)
+# 3. Run #35 (Reject)
+# 4. Run #32 (Check status - should be FAILED or COMPLETED with rejection)
+
+### SCENARIO C: Low-Value Order (Auto-Approved)
+# 1. Run #31 (Create low-value order)
+# 2. Run #32 (Check status - should be COMPLETED immediately)
+# Note: No approval needed - workflow completes automatically
+
+### SCENARIO D: Multiple Pending Approvals
+# 1. Run #38 (Create order 1)
+# 2. Run #39 (Create order 2)
+# 3. Run #33 (List all instances - should show 2 WAITING)
+# 4. Open Monitor UI - should see both in sidebar
+# 5. Approve one by one
+
+### ============================================
+### TROUBLESHOOTING TESTS
+### ============================================
+
+### If workflow not triggering:
+### Run #29 - Verify workflow is registered
+### Run #45 - Check product service logs
+
+### If status stays RUNNING:
+### Run #44 - Verify workflow has user-task step
+### Run #46 - Check execution service logs
+
+### If approval doesn't work:
+### Run #32 - Verify current_step matches step_id in approve request
+### Check browser console (F12) for errors
+
+### ============================================
+### PERFORMANCE TESTING
+### ============================================
+
+### 47. Rapid Order Creation (10 orders)
+# Run these in quick succession:
+POST {{productService}}/api/orders
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+{"customer_id": "perf-test-01", "items": [{"product": "Server", "quantity": 1, "price": 15000}], "total": 15000}
+###
+POST {{productService}}/api/orders
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+{"customer_id": "perf-test-02", "items": [{"product": "Server", "quantity": 1, "price": 15000}], "total": 15000}
+###
+POST {{productService}}/api/orders
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+{"customer_id": "perf-test-03", "items": [{"product": "Server", "quantity": 1, "price": 15000}], "total": 15000}
+
+### 48. Check All Pending Instances
+GET {{apiGateway}}/api/gateway/workflows/instances/recent?tenant_id={{tenantId}}&limit=20
+
+### ============================================
+### CLEANUP TESTS
+### ============================================
+
+### 49. List All Orders (For Cleanup Verification)
+GET {{productService}}/api/orders
+X-Tenant-ID: {{tenantId}}
+
+### 50. List All Workflow Instances (For Cleanup Verification)
+GET {{apiGateway}}/api/gateway/workflows/instances/recent?tenant_id={{tenantId}}&limit=50
