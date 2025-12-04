@@ -80,7 +80,7 @@ POST {{workflowService}}/api/workflows/wf-1764688391766-bnbz6k/submit
 X-Tenant-ID: {{tenantId}}
 
 ### 7. Approve Workflow
-POST {{workflowService}}/api/workflows/wf-1764693634571-p5xrli/approve
+POST {{workflowService}}/api/workflows/wf-1764830562705-d5tlh3/approve
 X-Tenant-ID: {{tenantId}}
 
 ### 8. Reject Workflow
@@ -149,10 +149,10 @@ POST {{tenantManager}}/api/tenants/{{tenantId}}/workflows
 Content-Type: application/json
 
 {
-  "workflow_id": "wf-1764693634571-p5xrli",
-  "workflow_name": "Test Workflow",
+  "workflow_id": "wf-1764830562705-d5tlh3",
+  "workflow_name": "Customer Order Workflow",
   "trigger_type": "sync",
-  "trigger_event": "ORDER_UPDATE_Test"
+  "trigger_event": "ORDER_CREATED"
 }
 
 ### 19. List Tenant Workflows

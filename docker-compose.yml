@@ -186,6 +186,20 @@ services:
       postgresql:
         condition: service_healthy
 
+  customer-ui:
+    build: ./services/customer-ui
+    container_name: wmc-customer-ui
+    ports:
+      - "3008:3000"
+    environment:
+      REACT_APP_PRODUCT_SERVICE: http://localhost:3001
+      REACT_APP_API_GATEWAY: http://localhost:3000
+      REACT_APP_TENANT_ID: tenant-a
+      PORT: 3000
+    volumes:
+      - ./services/customer-ui:/app
+      - /app/node_modules
+
 volumes:
   postgres_data:
   redis_data:

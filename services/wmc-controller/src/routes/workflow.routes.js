@@ -1,5 +1,6 @@
 const express = require("express");
 const workflowTriggerController = require("../controllers/workflow-trigger.controller");
+const executionServiceClient = require("../clients/execution-service.client");
 
 const router = express.Router();
 
