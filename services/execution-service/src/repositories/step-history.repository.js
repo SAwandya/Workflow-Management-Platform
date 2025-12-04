@@ -1,20 +1,26 @@
 const pool = require("../config/database");
 
 class StepHistoryRepository {
-  async create(instanceId, stepName, stepType, status, inputData = null) {
+  async create(stepData) {
     const query = `
       INSERT INTO execution_repository.step_history 
-        (instance_id, step_name, step_type, status, input_data, started_at)
-      VALUES ($1, $2, $3, $4, $5, NOW())
+        (instance_id, step_id, step_name, step_type, status, input_data, started_at)
+      VALUES ($1, $2, $3, $4, $5, $6, NOW())
       RETURNING *
     `;
+
+    // Ensure step_id is stored as string for consistency
+    const stepId = String(stepData.step_id);
+
     const result = await pool.query(query, [
-      instanceId,
-      stepName,
-      stepType,
-      status,
-      inputData ? JSON.stringify(inputData) : null,
+      stepData.instance_id,
+      stepId, // Convert to string
+      stepData.step_name,
+      stepData.step_type,
+      stepData.status || "STARTED",
+      JSON.stringify(stepData.input_data || {}),
     ]);
+
     return result.rows[0];
   }
 

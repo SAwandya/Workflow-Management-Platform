@@ -341,55 +341,60 @@ function WorkflowDesigner() {
         }
       }
 
-      // Create step definitions
+      // Create step definitions with NUMERIC IDs
+      let stepIdCounter = 1;
+      const stepIdMap = {}; // Map BPMN IDs to numeric IDs
+
+      // First pass: assign numeric IDs
+      Object.keys(elementMap).forEach((bpmnId) => {
+        stepIdMap[bpmnId] = stepIdCounter.toString();
+        stepIdCounter++;
+      });
+
+      // Second pass: create steps with numeric IDs and mapped next references
       Object.values(elementMap).forEach((element) => {
         const stepType = convertBpmnTypeToStepType(element.type);
+        const numericId = stepIdMap[element.id];
 
         const step = {
-          step_id: element.id,
+          step_id: numericId, // Use numeric ID instead of BPMN ID
           step_name: element.name,
           type: stepType,
         };
 
         // Handle different step types
         if (stepType === "start-event") {
-          // Start event always needs a next
           if (element.outgoing.length > 0) {
-            step.next = element.outgoing[0].target;
+            const targetBpmnId = element.outgoing[0].target;
+            step.next = stepIdMap[targetBpmnId]; // Map to numeric ID
           } else {
-            console.warn(
-              `Start event ${element.id} has no outgoing connection`
-            );
-            // Connect to first non-start element
             const firstOtherElement = Object.values(elementMap).find(
               (e) => e.id !== element.id && e.type !== "bpmn:startEvent"
             );
             if (firstOtherElement) {
-              step.next = firstOtherElement.id;
+              step.next = stepIdMap[firstOtherElement.id];
             }
           }
         } else if (stepType === "end-event") {
           // End event doesn't need next
         } else if (stepType === "exclusive-gateway") {
-          // Gateway needs branches
-          step.condition = "true"; // Default condition
+          step.condition = "true";
 
           if (element.outgoing.length >= 2) {
             step.branches = {
-              true: element.outgoing[0].target,
-              false: element.outgoing[1].target,
+              true: stepIdMap[element.outgoing[0].target],
+              false: stepIdMap[element.outgoing[1].target],
             };
           } else if (element.outgoing.length === 1) {
-            // Only one branch, use same for both
+            const targetId = stepIdMap[element.outgoing[0].target];
             step.branches = {
-              true: element.outgoing[0].target,
-              false: element.outgoing[0].target,
+              true: targetId,
+              false: targetId,
             };
           } else {
-            // No outgoing, create default
             step.branches = {
-              true: "auto-end",
-              false: "auto-end",
+              true: stepIdMap["auto-end"] || "2",
+              false: stepIdMap["auto-end"] || "2",
             };
           }
         } else {
@@ -401,12 +406,9 @@ function WorkflowDesigner() {
           };
 
           if (element.outgoing.length > 0) {
-            step.next = element.outgoing[0].target;
+            step.next = stepIdMap[element.outgoing[0].target];
           } else {
-            console.warn(
-              `Step ${element.id} has no outgoing connection, connecting to end`
-            );
-            step.next = "auto-end";
+            step.next = stepIdMap["auto-end"] || "2";
           }
         }
 

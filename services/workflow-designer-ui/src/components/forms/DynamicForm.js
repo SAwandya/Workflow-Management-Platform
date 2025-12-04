@@ -69,7 +69,7 @@ function DynamicForm({ schema, values, onChange }) {
               placeholder={fieldSchema.placeholder || "${variableName}"}
             />
             <small>
-              Use $&#123;variableName&#125; to reference workflow variables
+              Use {"${variableName}"} to reference workflow variables
             </small>
           </div>
         );

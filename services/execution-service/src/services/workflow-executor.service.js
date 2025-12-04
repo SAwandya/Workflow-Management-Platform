@@ -69,130 +69,166 @@ class WorkflowExecutorService {
 
     console.log(`Workflow instance created: ${instanceId}`);
 
-    // Start execution
-    const result = await this.executeWorkflow(
+    // Find the start event - flexible search
+    const startStep = this.findStartStep(workflowDef.steps);
+
+    if (!startStep) {
+      throw new Error("No start event found in workflow");
+    }
+
+    console.log(
+      `Starting workflow at step: ${startStep.step_id} (${startStep.step_name})`
+    );
+
+    // Start executing from start step
+    await this.executeNextStep(
       instanceId,
+      tenantId,
+      startStep.step_id,
       workflowDef,
-      tenantId
+      initialVariables
     );
 
     return {
       instanceId,
-      status: result.status,
-      message: result.message,
+      status: "RUNNING",
+      message: "Workflow started",
     };
   }
 
-  async executeWorkflow(instanceId, workflowDef, tenantId) {
+  /**
+   * Find start step - supports multiple formats
+   */
+  findStartStep(steps) {
+    if (!steps || steps.length === 0) {
+      return null;
+    }
+
+    // Look for explicit start event
+    let startStep = steps.find((s) => s.type === "start-event");
+
+    if (startStep) {
+      return startStep;
+    }
+
+    // If no start event found, look for step with ID "1" or "auto-start"
+    startStep = steps.find(
+      (s) => s.step_id === "1" || s.step_id === 1 || s.step_id === "auto-start"
+    );
+
+    if (startStep) {
+      console.log(`Using step ${startStep.step_id} as start event`);
+      return startStep;
+    }
+
+    // Last resort: use first step if it doesn't have incoming connections
+    // (This would require tracking connections, so just use first step)
+    console.warn("No explicit start event found, using first step");
+    return steps[0];
+  }
+
+  async executeNextStep(instanceId, tenantId, stepId, workflowDef, variables) {
     try {
-      // Get current execution state
-      let state = await executionStateRepository.findByInstanceId(instanceId);
-      let currentStepId = state.current_step;
-      let variables = state.variables;
+      // Use step processor's find method
+      const step = stepProcessorService.findStep(workflowDef, stepId);
 
-      // Execute steps sequentially
-      while (currentStepId) {
-        const step = this.findStep(workflowDef.steps, currentStepId);
-        if (!step) {
-          throw new Error(`Step not found: ${currentStepId}`);
-        }
-
-        // Log step start
-        const stepHistory = await stepHistoryRepository.create(
-          instanceId,
-          step.step_name,
-          step.type,
-          "STARTED",
-          { variables }
-        );
-
-        try {
-          // Process step
-          const result = await stepProcessorService.processStep(
-            step,
-            variables
-          );
-
-          // Update variables if step produced output
-          if (result.newVariables) {
-            variables = { ...variables, ...result.newVariables };
-          }
-
-          // Log step completion
-          await stepHistoryRepository.complete(
-            stepHistory.step_id,
-            "COMPLETED",
-            result.output
-          );
-
-          // Check if workflow should wait (user task)
-          if (result.waiting) {
-            await workflowInstanceRepository.updateStatus(
-              instanceId,
-              "WAITING"
-            );
-            await executionStateRepository.update(
-              instanceId,
-              currentStepId,
-              variables
-            );
-
-            return {
-              status: "WAITING",
-              message: "Workflow waiting for user action",
-              currentStep: step.step_name,
-            };
-          }
-
-          // Check if workflow is completed
-          if (result.completed) {
-            await workflowInstanceRepository.updateStatus(
-              instanceId,
-              "COMPLETED"
-            );
-            await executionStateRepository.update(
-              instanceId,
-              currentStepId,
-              variables
-            );
-
-            return {
-              status: "COMPLETED",
-              message: "Workflow completed successfully",
-            };
-          }
-
-          // Move to next step
-          currentStepId = result.nextStep;
-          await executionStateRepository.update(
-            instanceId,
-            currentStepId,
-            variables
-          );
-        } catch (stepError) {
-          console.error(`Step execution failed: ${step.step_name}`, stepError);
-
-          // Log step failure
-          await stepHistoryRepository.complete(
-            stepHistory.step_id,
-            "FAILED",
-            null,
-            stepError.message
-          );
-
-          // Mark workflow as failed
-          await workflowInstanceRepository.updateStatus(
-            instanceId,
-            "FAILED",
-            stepError.message
-          );
-
-          throw stepError;
-        }
+      if (!step) {
+        console.error(`Step ${stepId} not found in workflow definition`);
+        await this.markWorkflowFailed(instanceId, `Step not found: ${stepId}`);
+        return;
       }
 
-      // Should not reach here
-      throw new Error("Workflow ended without reaching end event");
+      // Log step start
+      const stepHistory = await stepHistoryRepository.create(
+        instanceId,
+        step.step_name,
+        step.type,
+        "STARTED",
+        { variables }
+      );
+
+      try {
+        // Process step
+        const result = await stepProcessorService.processStep(step, variables);
+
+        // Update variables if step produced output
+        if (result.newVariables) {
+          variables = { ...variables, ...result.newVariables };
+        }
+
+        // Log step completion
+        await stepHistoryRepository.complete(
+          stepHistory.step_id,
+          "COMPLETED",
+          result.output
+        );
+
+        // Check if workflow should wait (user task)
+        if (result.waiting) {
+          await workflowInstanceRepository.updateStatus(instanceId, "WAITING");
+          await executionStateRepository.update(instanceId, stepId, variables);
+
+          return {
+            status: "WAITING",
+            message: "Workflow waiting for user action",
+            currentStep: step.step_name,
+          };
+        }
+
+        // Check if workflow is completed
+        if (result.completed) {
+          await workflowInstanceRepository.updateStatus(
+            instanceId,
+            "COMPLETED"
+          );
+          await executionStateRepository.update(instanceId, stepId, variables);
+
+          return {
+            status: "COMPLETED",
+            message: "Workflow completed successfully",
+          };
+        }
+
+        // Get next step using processor's method
+        const nextStepId = stepProcessorService.getNextStepId(step, variables);
+
+        if (nextStepId) {
+          // Recursively execute next step
+          await this.executeNextStep(
+            instanceId,
+            tenantId,
+            nextStepId,
+            workflowDef,
+            variables
+          );
+        } else {
+          // No next step found, mark workflow as completed
+          await workflowInstanceRepository.updateStatus(
+            instanceId,
+            "COMPLETED"
+          );
+          await executionStateRepository.update(instanceId, stepId, variables);
+        }
+      } catch (stepError) {
+        console.error(`Step execution failed: ${step.step_name}`, stepError);
+
+        // Log step failure
+        await stepHistoryRepository.complete(
+          stepHistory.step_id,
+          "FAILED",
+          null,
+          stepError.message
+        );
+
+        // Mark workflow as failed
+        await workflowInstanceRepository.updateStatus(
+          instanceId,
+          "FAILED",
+          stepError.message
+        );
+
+        throw stepError;
+      }
     } catch (error) {
       console.error(`Workflow execution failed: ${instanceId}`, error);
 

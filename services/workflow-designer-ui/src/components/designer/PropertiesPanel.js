@@ -50,7 +50,6 @@ function PropertiesPanel({ selectedElement, onPropertiesChange }) {
 
   const isTask = selectedElement.type.includes("Task");
   const isGateway = selectedElement.type.includes("Gateway");
-  const isEvent = selectedElement.type.includes("Event");
 
   return (
     <div className="properties-panel">

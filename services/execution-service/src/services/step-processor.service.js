@@ -1,8 +1,26 @@
 const integrationServiceClient = require("../clients/integration-service.client");
 
 class StepProcessorService {
-  async processStep(step, variables) {
-    console.log(`Processing step: ${step.step_name} (type: ${step.type})`);
+  async processStep(
+    instanceId,
+    tenantId,
+    stepId,
+    workflowDefinition,
+    variables
+  ) {
+    console.log(`Processing step: ${stepId} for instance: ${instanceId}`);
+
+    // Find the step in workflow definition (support both exact match and flexible search)
+    const step = this.findStep(workflowDefinition, stepId);
+
+    if (!step) {
+      console.error(`Step not found: ${stepId}`);
+      console.error(
+        "Available steps:",
+        workflowDefinition.steps?.map((s) => s.step_id)
+      );
+      throw new Error(`Step not found: ${stepId}`);
+    }
 
     switch (step.type) {
       case "start-event":
@@ -301,6 +319,97 @@ class StepProcessorService {
       `(type: ${typeof value})`
     );
     return value;
+  }
+
+  /**
+   * Find step by ID - supports both numeric and BPMN-style IDs
+   * Also handles string/number type mismatches
+   */
+  findStep(workflowDefinition, stepId) {
+    if (!workflowDefinition.steps || workflowDefinition.steps.length === 0) {
+      return null;
+    }
+
+    // Convert stepId to string for comparison
+    const stepIdStr = String(stepId);
+
+    // Try exact match first
+    let step = workflowDefinition.steps.find(
+      (s) => String(s.step_id) === stepIdStr
+    );
+
+    if (step) {
+      return step;
+    }
+
+    // If looking for numeric ID (like "1"), try to find by position
+    // This handles case where workflow uses numeric IDs but they're stored as strings
+    const numericMatch = stepIdStr.match(/^\d+$/);
+    if (numericMatch) {
+      const stepIndex = parseInt(stepIdStr) - 1;
+      if (stepIndex >= 0 && stepIndex < workflowDefinition.steps.length) {
+        // Check if steps use numeric IDs
+        const hasNumericIds = workflowDefinition.steps.every(
+          (s) =>
+            String(s.step_id).match(/^\d+$/) ||
+            s.step_id === "auto-start" ||
+            s.step_id === "auto-end"
+        );
+
+        if (hasNumericIds) {
+          step = workflowDefinition.steps[stepIndex];
+          if (step) {
+            console.log(
+              `Found step by numeric index: ${stepId} -> ${step.step_id}`
+            );
+            return step;
+          }
+        }
+      }
+    }
+
+    // Try fuzzy match for special cases (auto-start, auto-end)
+    if (
+      stepIdStr === "1" ||
+      stepIdStr === "start" ||
+      stepIdStr === "auto-start"
+    ) {
+      step = workflowDefinition.steps.find(
+        (s) =>
+          s.type === "start-event" ||
+          s.step_id === "auto-start" ||
+          s.step_id === "1"
+      );
+      if (step) {
+        console.log(`Found start event: ${stepId} -> ${step.step_id}`);
+        return step;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Get next step ID - handles both numeric and BPMN-style IDs
+   */
+  getNextStepId(step, variables) {
+    // Handle gateways with conditions
+    if (step.type === "exclusive-gateway" && step.branches) {
+      const condition = step.condition || "true";
+      const conditionResult = this.evaluateCondition(condition, variables);
+
+      const nextStepId = conditionResult
+        ? step.branches.true
+        : step.branches.false;
+      console.log(
+        `Gateway decision: ${conditionResult} -> next step: ${nextStepId}`
+      );
+
+      return nextStepId;
+    }
+
+    // Regular flow - return next step ID
+    return step.next || null;
   }
 }
 
