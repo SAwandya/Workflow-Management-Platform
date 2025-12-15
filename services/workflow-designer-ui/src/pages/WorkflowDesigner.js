@@ -21,6 +21,7 @@ function WorkflowDesigner() {
 
   const [bpmnXml, setBpmnXml] = useState("");
   const [selectedElement, setSelectedElement] = useState(null);
+  const [elementProperties, setElementProperties] = useState({}); // Store all element properties
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -59,7 +60,15 @@ function WorkflowDesigner() {
   };
 
   const handlePropertiesChange = (element, properties) => {
-    // Update workflow steps_json with element properties
+    console.log("Saving properties for element:", element.id, properties);
+
+    // Store properties in elementProperties map
+    setElementProperties((prev) => ({
+      ...prev,
+      [element.id]: properties,
+    }));
+
+    // Update workflow steps_json
     const steps = workflow.steps_json.steps || [];
     const existingStepIndex = steps.findIndex((s) => s.step_id === element.id);
 
@@ -73,7 +82,10 @@ function WorkflowDesigner() {
     let updatedSteps;
     if (existingStepIndex >= 0) {
       updatedSteps = [...steps];
-      updatedSteps[existingStepIndex] = stepData;
+      updatedSteps[existingStepIndex] = {
+        ...updatedSteps[existingStepIndex],
+        ...stepData,
+      };
     } else {
       updatedSteps = [...steps, stepData];
     }
@@ -545,6 +557,9 @@ function WorkflowDesigner() {
         />
         <PropertiesPanel
           selectedElement={selectedElement}
+          savedProperties={
+            selectedElement ? elementProperties[selectedElement.id] : null
+          }
           onPropertiesChange={handlePropertiesChange}
         />
       </div>

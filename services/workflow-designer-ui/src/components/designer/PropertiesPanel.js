@@ -4,38 +4,52 @@ import DynamicForm from "../forms/DynamicForm";
 import UIStateConfig from "../forms/UIStateConfig";
 import "./PropertiesPanel.css";
 
-function PropertiesPanel({ selectedElement, onPropertiesChange }) {
+function PropertiesPanel({
+  selectedElement,
+  savedProperties,
+  onPropertiesChange,
+}) {
   const [properties, setProperties] = useState({});
   const [selectedService, setSelectedService] = useState(null);
   const [showServiceSelector, setShowServiceSelector] = useState(false);
 
+  // Load saved properties when element changes
   useEffect(() => {
     if (selectedElement) {
-      // Initialize properties from element
-      const businessObject = selectedElement.businessObject;
-      setProperties({
-        id: selectedElement.id,
-        name: businessObject.name || "",
-        type: selectedElement.type,
-        ...businessObject.$attrs,
-      });
-    }
-  }, [selectedElement]);
+      console.log("Loading properties for element:", selectedElement.id);
+      console.log("Saved properties:", savedProperties);
 
-  const handlePropertyChange = (key, value) => {
-    const updatedProperties = {
+      // Use saved properties if available, otherwise use element defaults
+      const initialProps = savedProperties || {
+        name: selectedElement.businessObject?.name || "",
+        // Add other default properties
+      };
+
+      setProperties(initialProps);
+    } else {
+      setProperties({});
+    }
+  }, [selectedElement?.id, savedProperties]);
+
+  const handleChange = (key, value) => {
+    const newProperties = {
       ...properties,
       [key]: value,
     };
-    setProperties(updatedProperties);
-    onPropertiesChange &&
-      onPropertiesChange(selectedElement, updatedProperties);
+
+    console.log("Property changed:", key, "=", value);
+    setProperties(newProperties);
+
+    // Notify parent immediately
+    if (onPropertiesChange && selectedElement) {
+      onPropertiesChange(selectedElement, newProperties);
+    }
   };
 
   const handleServiceSelect = (service) => {
     setSelectedService(service);
     setShowServiceSelector(false);
-    handlePropertyChange("service_id", service.service_id);
+    handleChange("service_id", service.service_id);
   };
 
   if (!selectedElement) {
@@ -78,7 +92,7 @@ function PropertiesPanel({ selectedElement, onPropertiesChange }) {
             <input
               type="text"
               value={properties.name || ""}
-              onChange={(e) => handlePropertyChange("name", e.target.value)}
+              onChange={(e) => handleChange("name", e.target.value)}
               placeholder="Enter step name"
             />
           </div>
@@ -118,9 +132,7 @@ function PropertiesPanel({ selectedElement, onPropertiesChange }) {
                 <DynamicForm
                   schema={selectedService.parameters_schema}
                   values={properties.serviceConfig || {}}
-                  onChange={(config) =>
-                    handlePropertyChange("serviceConfig", config)
-                  }
+                  onChange={(config) => handleChange("serviceConfig", config)}
                 />
               </>
             )}
@@ -143,9 +155,7 @@ function PropertiesPanel({ selectedElement, onPropertiesChange }) {
               <label>Condition</label>
               <textarea
                 value={properties.condition || ""}
-                onChange={(e) =>
-                  handlePropertyChange("condition", e.target.value)
-                }
+                onChange={(e) => handleChange("condition", e.target.value)}
                 placeholder="e.g., orderValue > 10000"
                 rows={3}
               />
@@ -160,7 +170,7 @@ function PropertiesPanel({ selectedElement, onPropertiesChange }) {
             <h4>UI State Configuration</h4>
             <UIStateConfig
               uiState={properties.uiState || {}}
-              onChange={(uiState) => handlePropertyChange("uiState", uiState)}
+              onChange={(uiState) => handleChange("uiState", uiState)}
             />
           </div>
         )}
@@ -172,9 +182,7 @@ function PropertiesPanel({ selectedElement, onPropertiesChange }) {
             <label>Description</label>
             <textarea
               value={properties.documentation || ""}
-              onChange={(e) =>
-                handlePropertyChange("documentation", e.target.value)
-              }
+              onChange={(e) => handleChange("documentation", e.target.value)}
               placeholder="Describe what this step does"
               rows={3}
             />
