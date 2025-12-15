@@ -16,12 +16,18 @@ function useWorkflowStatus(instanceId, tenantId, pollingInterval = 5000) {
     if (!instanceId) return;
 
     try {
+      console.log(
+        `[useWorkflowStatus] Fetching status for instance: ${instanceId}`
+      );
+
       const response = await axios.get(
         `${API_GATEWAY}/api/gateway/workflows/instances/${instanceId}/status`,
         {
           params: { tenant_id: tenantId },
         }
       );
+
+      console.log(`[useWorkflowStatus] Response received:`, response.data);
 
       setInstance(response.data.instance);
       setState(response.data.state);
@@ -34,15 +40,35 @@ function useWorkflowStatus(instanceId, tenantId, pollingInterval = 5000) {
           response.data.instance.status
         )
       ) {
+        console.log(
+          `[useWorkflowStatus] Workflow in terminal state, stopping polling`
+        );
         setIsPolling(false);
       }
     } catch (err) {
-      console.error("Failed to fetch workflow status:", err);
-      setError(err.response?.data?.details || err.message);
+      console.error(
+        "[useWorkflowStatus] Failed to fetch workflow status:",
+        err
+      );
+      console.error("[useWorkflowStatus] Error details:", err.response?.data);
+      setError(
+        err.response?.data?.details || err.response?.data?.error || err.message
+      );
     } finally {
       setLoading(false);
     }
   }, [instanceId, tenantId, API_GATEWAY]);
+
+  // Reset state when instanceId changes
+  useEffect(() => {
+    if (instanceId) {
+      setLoading(true);
+      setInstance(null);
+      setState(null);
+      setHistory([]);
+      setError(null);
+    }
+  }, [instanceId]);
 
   // Initial fetch
   useEffect(() => {

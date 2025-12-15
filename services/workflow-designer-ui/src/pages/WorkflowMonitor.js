@@ -172,28 +172,34 @@ function WorkflowMonitor() {
             </div>
           )}
 
-          {statusError && (
-            <div className="error-banner">
-              {statusError}
-              <button onClick={() => setError(null)}>×</button>
-            </div>
-          )}
-
           {!selectedInstanceId ? (
             <div className="no-selection">
               <div className="no-selection-icon">📊</div>
               <h3>Select a Workflow Instance</h3>
               <p>Choose a workflow from the list to view its status</p>
             </div>
+          ) : statusError ? (
+            <div className="error-state">
+              <div className="error-icon">⚠️</div>
+              <h3>Failed to Load Workflow Status</h3>
+              <p>{statusError}</p>
+              <button className="btn-retry" onClick={refresh}>
+                Retry
+              </button>
+            </div>
           ) : statusLoading && !instance ? (
             <div className="loading">Loading workflow status...</div>
-          ) : (
+          ) : instance ? (
             <WorkflowStatusDisplay
               instance={instance}
               state={state}
               history={history}
               role={role}
             />
+          ) : (
+            <div className="no-data">
+              <p>No workflow data available</p>
+            </div>
           )}
         </div>
       </div>

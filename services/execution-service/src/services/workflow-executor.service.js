@@ -236,6 +236,42 @@ class WorkflowExecutorService {
       console.error("Failed to mark workflow as failed:", error);
     }
   }
+
+  async getWorkflowStatus(instanceId, tenantId) {
+    try {
+      console.log(
+        `[WorkflowExecutor] Getting status for workflow instance: ${instanceId}, tenant: ${tenantId}`
+      );
+
+      // Get workflow instance
+      const workflowInstanceRepository = require("../repositories/workflow-instance.repository");
+      const instance = await workflowInstanceRepository.findById(
+        instanceId,
+        tenantId
+      );
+
+      if (!instance) {
+        throw new Error(`Workflow instance ${instanceId} not found`);
+      }
+
+      // Get workflow state
+      const workflowStateRepository = require("../repositories/workflow-state.repository");
+      const state = await workflowStateRepository.findByInstanceId(instanceId);
+
+      // Get step history
+      const stepHistoryRepository = require("../repositories/step-history.repository");
+      const history = await stepHistoryRepository.findByInstanceId(instanceId);
+
+      return {
+        instance,
+        state,
+        history: history || [],
+      };
+    } catch (error) {
+      console.error(`[WorkflowExecutor] Failed to get workflow status:`, error);
+      throw error;
+    }
+  }
 }
 
 module.exports = new WorkflowExecutorService();
