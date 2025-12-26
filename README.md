@@ -1,3 +1,5 @@
+Move to WMC 2.0 -> https://github.com/SAwandya/WMC-2.0
+
 # Workflow Management Component (WMC) - Phase 1
 
 Multi-tenant SaaS platform with workflow-level customization capabilities.
